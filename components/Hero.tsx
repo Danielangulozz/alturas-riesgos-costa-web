@@ -25,8 +25,9 @@ export default function Hero() {
           ">
             Formación de{" "}
             <span className="
-              /* Usamos el azul del logo aquí para que resalte sobre el fondo cálido */
-              text-[#00558A]
+              /* Amarillo del logo para resaltar */
+              text-[#FFD700]
+              drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]
             ">
               trabajo en alturas
             </span>{" "}
@@ -48,7 +49,7 @@ export default function Hero() {
               className="
                 px-8 py-4 rounded-full font-bold
                 bg-white text-[#8B2323]
-                shadow-xl hover:bg-[#00558A] hover:text-white
+                shadow-xl hover:bg-green-400 hover:text-white
                 hover:scale-[1.05] transition-all
               "
             >
