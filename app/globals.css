@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+
+/* =========================
+   🌍 TEMA GLOBAL DEFAULT
+   ========================= */
+:root {
+  --color-primary: 11 181 245;
+  --color-accent: 255 205 0;
+  --bg-soft: 2 81 89;
+
+  --text-main: 243 244 246;
+  --text-soft: 156 163 175;
+
+  --border-soft: 55 65 81;
+}
+
+/* =========================
+   BASE DEFAULT DE NEXT
+   ========================= */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: rgb(var(--bg-main));
+  color: rgb(var(--text-main));
+}
