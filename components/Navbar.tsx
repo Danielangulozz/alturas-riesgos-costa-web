@@ -76,6 +76,7 @@ export default function Navbar() {
                 <li><Link href="/nosotros" className="hover:text-green-400 transition">Nosotros</Link></li>
                 <li><Link href="/cursos" className="hover:text-green-400 transition">Cursos</Link></li>
                 <li><Link href="/certificados" className="hover:text-green-400 transition">Certificados</Link></li>
+                <li><Link href="/registro" className="hover:text-green-400 transition">Carga de archivos</Link></li>
               </ul>
 
               {/* CTA DESKTOP */}
