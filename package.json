@@ -9,11 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hcaptcha/react-hcaptcha": "^1.17.3",
     "@midudev/tailwind-animations": "^0.2.0",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.89.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "resend": "^6.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
