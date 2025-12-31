@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react"; // 1. Agregado useRef aquí
+import { useState, useRef } from "react"; 
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import HCaptcha from '@hcaptcha/react-hcaptcha';
@@ -12,10 +12,11 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null); // Estado para el token
+  // Inicializamos con un valor ficticio para evitar bloqueos de lógica
+  const [captchaToken, setCaptchaToken] = useState<string | null>("bypass"); 
   
   const router = useRouter();
-  const captchaRef = useRef<HCaptcha>(null); // Referencia corregida
+  const captchaRef = useRef<HCaptcha>(null);
 
   // ---------------------------------------------------------
   // 2. LÓGICA DE INICIO DE SESIÓN
@@ -23,28 +24,30 @@ export default function AdminLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar que el captcha se haya hecho
+    /* --- CAPTCHA DESHABILITADO TEMPORALMENTE ---
     if (!captchaToken) {
       alert("Por favor, completa el captcha de seguridad.");
       return;
     }
+    ------------------------------------------- */
 
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        captchaToken, // Enviamos el token a Supabase
-      },
+      // Se comenta la opción de captcha para que Supabase no lo exija
+      // options: {
+      //   captchaToken, 
+      // },
     });
 
     if (error) {
-      alert("Error: Credenciales inválidas o fallo en seguridad");
+      alert("Error: Credenciales inválidas");
       setLoading(false);
-      // Reiniciamos el captcha si hay error para que lo vuelvan a hacer
-      setCaptchaToken(null);
+      /* setCaptchaToken(null);
       captchaRef.current?.resetCaptcha();
+      */
     } else {
       router.push("/admin"); 
     }
@@ -86,7 +89,7 @@ export default function AdminLogin() {
             />
           </div>
 
-          {/* WIDGET DE HCAPTCHA */}
+          {/* WIDGET DE HCAPTCHA - DESHABILITADO VISUALMENTE
           <div className="flex justify-center">
             <HCaptcha
               ref={captchaRef}
@@ -95,13 +98,14 @@ export default function AdminLogin() {
               onExpire={() => setCaptchaToken(null)}
             />
           </div>
+          */}
                 
           <button
             disabled={loading}
             type="submit"
             className="w-full py-4 bg-[#8B2323] text-white font-bold rounded-xl hover:bg-red-700 transition duration-300 shadow-lg disabled:opacity-50"
           >
-            {loading ? "Verificando..." : "Iniciar Sesión"}
+            {loading ? "Iniciando..." : "Iniciar Sesión"}
           </button>
         </form>
       </div>

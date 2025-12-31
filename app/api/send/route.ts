@@ -1,33 +1,28 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Usamos un condicional para que no explote si no hay Key
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY) 
+  : null;
 
 export async function POST(req: Request) {
+  if (!resend) {
+    return NextResponse.json({ error: "API Key de Resend no configurada" }, { status: 500 });
+  }
+
   try {
-    const { email, nombre, curso, tipo, estado } = await req.json();
-
-    // Personalizamos el mensaje según el tipo de correo
-    let subject = "";
-    let html = "";
-
-    if (tipo === "bienvenida") {
-      subject = `¡Bienvenido a AR Costa Entrenamiento - ${curso}!`;
-      html = `<h1>Hola ${nombre}</h1><p>Has sido registrado exitosamente en el curso de <strong>${curso}</strong>. Ya puedes ingresar al portal con tu cédula para subir tus documentos.</p>`;
-    } else if (tipo === "estado_docs") {
-      subject = `Actualización de tus documentos - AR Costa`;
-      html = `<h1>Hola ${nombre}</h1><p>Tu documentación para el curso <strong>${curso}</strong> ha sido marcada como: <strong>${estado}</strong>.</p>`;
-    }
+    const { email, nombre, estado } = await req.json();
 
     const data = await resend.emails.send({
-      from: 'AR Costa <onboarding@resend.dev>', // Luego podrás usar tu propio dominio
-      to: [email],
-      subject: subject,
-      html: html,
+      from: 'AR Costa <onboarding@resend.dev>', // Dominio de prueba obligatorio
+      to: [email], // RECUERDA: Solo funcionará si 'email' es tu propio correo de admin
+      subject: 'Actualización de Documentos',
+      html: `<p>Hola ${nombre}, tu estado es: ${estado}</p>`,
     });
 
     return NextResponse.json(data);
   } catch (error) {
-    return NextResponse.json({ error });
+    return NextResponse.json({ error }, { status: 400 });
   }
 }
