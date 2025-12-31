@@ -1,28 +1,35 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-// Usamos un condicional para que no explote si no hay Key
-const resend = process.env.RESEND_API_KEY 
-  ? new Resend(process.env.RESEND_API_KEY) 
-  : null;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
-  if (!resend) {
-    return NextResponse.json({ error: "API Key de Resend no configurada" }, { status: 500 });
-  }
-
   try {
-    const { email, nombre, estado } = await req.json();
+    const body = await req.json();
+    const { email, nombre, estado } = body;
 
-    const data = await resend.emails.send({
-      from: 'AR Costa <onboarding@resend.dev>', // Dominio de prueba obligatorio
-      to: [email], // RECUERDA: Solo funcionará si 'email' es tu propio correo de admin
-      subject: 'Actualización de Documentos',
-      html: `<p>Hola ${nombre}, tu estado es: ${estado}</p>`,
+    // VALIDACIÓN IMPORTANTE
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: "Falta la API KEY en Vercel" }, { status: 500 });
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: 'AR Costa <onboarding@resend.dev>', // No cambies esto hasta tener dominio propio
+      to: [email], // Si es cuenta gratuita, solo funcionará con TU email
+      subject: 'Actualización de Estado - AR Costa',
+      html: `
+        <h1>Hola ${nombre}</h1>
+        <p>Te informamos que tu estado en el sistema es: <strong>${estado}</strong></p>
+        <p>Saludos,<br/>Equipo AR Costa</p>
+      `,
     });
 
-    return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json({ error }, { status: 400 });
+    if (error) {
+      return NextResponse.json({ error }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
