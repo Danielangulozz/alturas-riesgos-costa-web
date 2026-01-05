@@ -1,95 +1,157 @@
 import Hero from "@/components/Hero";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/Navbar"; // Asegúrate de tenerlo aquí o en layout.tsx
+import Footer from "@/components/Footer";
+import Image from "next/image";
+import { 
+  FaClock, 
+  FaClipboardList, 
+  FaUserShield, 
+  FaUsers, 
+  FaUserGraduate, 
+  FaSyncAlt,
+  FaCheckCircle 
+} from "react-icons/fa";
 
 export default function HomePage() {
+  const cursos = [
+    {
+      title: "Jefes de Área",
+      desc: "Diseñado para personal administrativo que dicta políticas y toma decisiones sobre seguridad en alturas.",
+      duration: "8 Horas",
+      reqs: "Cédula y Examen",
+      icon: <FaUserShield />,
+      img: "/pic1.jpeg" 
+    },
+    {
+      title: "Trabajador Autorizado",
+      desc: "Formación técnica para operarios que realizan labores directas en alturas siguiendo procedimientos seguros.",
+      duration: "32 Horas",
+      reqs: "Aptitud Médica",
+      icon: <FaUsers />,
+      img: "/pic1.jpeg"
+    },
+    {
+      title: "Coordinador de Alturas",
+      desc: "Capacitación de alto nivel para identificar peligros y supervisar medidas de protección en sitio.",
+      duration: "80 Horas",
+      reqs: "Exp. Certificada",
+      icon: <FaUserGraduate />,
+      img: "/pic1.jpeg"
+    },
+    {
+      title: "Reentrenamiento",
+      desc: "Actualización anual obligatoria para mantener vigentes las competencias y conocimientos técnicos.",
+      duration: "8 Horas",
+      reqs: "Certificado Previo",
+      icon: <FaSyncAlt />,
+      img: "/pic1.jpeg"
+    }
+  ];
+
   return (
-    <>
-      <Hero />
+    /* flex flex-col min-h-screen es el TRUCO MAESTRO. 
+       Hace que el footer siempre se vaya al final sin importar la info que agregues */
+    <div className="flex flex-col min-h-screen bg-white">
+      <main className="flex-grow">
+        <Hero />
 
-      {/* Sección Empresa */}
-      <section className="max-h-7xl mx-auto px-6 py-20 bg-gradient-to-b from-[#F8FAFC] to-[#F8FAFC]">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">
-              ¿Quiénes somos?
-            </h2>
-            <p className="mt-4 text-gray-700 leading-relaxed">
-              <strong>Alturas y Riesgos de la Costa S.A.S</strong> es una empresa
-              ubicada en Sincelejo, dedicada a la capacitación en trabajo en
-              alturas, reentrenamiento y seguridad industrial.
-            </p>
-            <p className="mt-4 text-gray-700 leading-relaxed">
-              Nuestro enfoque está en la formación responsable, segura y
-              conforme a la normativa vigente del Ministerio del Trabajo.
-            </p>
+        {/* --- SECCIÓN QUIÉNES SOMOS --- */}
+        <section className="relative max-w-7xl mx-auto px-6 py-24">
+          {/* Textura de puntos sutil */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+            style={{ backgroundImage: `radial-gradient(#0F172A 1px, transparent 1px)`, backgroundSize: '30px 30px' }}>
           </div>
 
-          <div className="bg-[#E2E8F0] rounded-xl p-8">
-            <ul className="space-y-4 text-gray-800">
-              <li>✔ Formación certificada</li>
-              <li>✔ Instructores calificados</li>
-              <li>✔ Cumplimiento legal</li>
-              <li>✔ Certificados digitales</li>
-            </ul>
+          <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
+            <div className="animate-in fade-in slide-in-from-left duration-1000">
+              <h2 className="text-4xl font-black text-[#0F172A] tracking-tighter uppercase">
+                ¿Quiénes somos?
+              </h2>
+              <div className="w-20 h-1.5 bg-[#FFD700] mt-2 mb-8 rounded-full"></div>
+              
+              <p className="text-slate-600 text-lg leading-relaxed mb-6 font-medium">
+                En <span className="font-bold text-[#0F172A]">Alturas y Riesgos de la Costa S.A.S</span>, 
+                lideramos la formación industrial en Sincelejo, con un compromiso inquebrantable por la vida.
+              </p>
+              <p className="text-slate-600 text-lg border-l-4 border-[#FFD700] pl-6 py-4 bg-slate-50 rounded-r-xl font-medium">
+                Operamos bajo la <strong>Resolución 4272 de 2021</strong>, garantizando certificaciones 
+                con total validez legal ante el Ministerio del Trabajo.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                "Formación Certificada", "Instructores Expertos", 
+                "Cumplimiento Legal", "Certificados Digitales"
+              ].map((item, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col items-center text-center group hover:border-[#FFD700] hover:shadow-2xl transition-all duration-500">
+                  <FaCheckCircle className="text-[#0F172A] text-2xl mb-3 transition-colors group-hover:text-[#FFD700]" />
+                  <span className="font-black text-[#0F172A] text-[10px] uppercase tracking-[0.2em]">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Servicios */}
-      <section className="bg-gray-50 py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-900">
-            Nuestros servicios
-          </h2>
-
-          <div className="mt-12 grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Trabajo en alturas",
-                desc: "Capacitación inicial conforme a la Resolución 4272.",
-              },
-              {
-                title: "Reentrenamiento",
-                desc: "Actualización periódica obligatoria para trabajadores.",
-              },
-              {
-                title: "Certificación digital",
-                desc: "Consulta pública y descarga inmediata de certificados.",
-              },
-            ].map((s) => (
-              <div
-                key={s.title}
-                className="bg-white border border-green-400 rounded-xl shadow-md p-6 hover:shadow-lg transition"
-              >
-                <h3 className="text-xl font-semibold text-green-400">
-                  {s.title}
-                </h3>
-                <p className="mt-3 text-gray-700">{s.desc}</p>
-              </div>
-            ))}
+        {/* --- SECCIÓN SERVICIOS (CURSOS) --- */}
+        <section className="bg-slate-50 py-24 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
+            style={{ backgroundImage: `radial-gradient(#0F172A 1px, transparent 1px)`, backgroundSize: '20px 20px' }}>
           </div>
-        </div>
-      </section>
 
-      {/* CTA */}
-      <section className="bg-gradient-to-b from-[#F8FAFC] to-[#F8FAFC] text-black py-16">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold">
-            Consulta o valida tu certificado
-          </h2>
-          <p className="mt-4 text-gray-300">
-            Verifica la autenticidad de certificados emitidos por nuestra
-            plataforma.
-          </p>
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-black text-[#0F172A] uppercase tracking-tighter">
+                Nuestros Servicios
+              </h2>
+              <p className="text-slate-500 mt-2 font-bold uppercase tracking-widest text-xs">Capacitación técnica de alto nivel</p>
+            </div>
 
-          <a
-            href="/certificados"
-            className="inline-block mt-8 px-8 py-3 rounded-md bg-yellow-400 text-black font-medium hover:bg-yellow-300"
-          >
-            Ir a certificados
-          </a>
-        </div>
-      </section>
-    </>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {cursos.map((curso, idx) => (
+                <div key={idx} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 group hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
+                  <div className="relative h-52 w-full overflow-hidden">
+                    <Image src={curso.img} alt={curso.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent opacity-90"></div>
+                    <div className="absolute bottom-4 left-4 text-[#FFD700] text-3xl drop-shadow-lg">{curso.icon}</div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="bg-slate-100 text-[#0F172A] text-[9px] font-black px-2 py-1 rounded-md uppercase border border-slate-200 flex items-center gap-1">
+                        <FaClock size={10} /> {curso.duration}
+                      </span>
+                      <span className="bg-[#FFD700]/10 text-[#0F172A] text-[9px] font-black px-2 py-1 rounded-md uppercase border border-[#FFD700]/20 flex items-center gap-1">
+                        <FaClipboardList size={10} /> {curso.reqs}
+                      </span>
+                    </div>
+
+                    <h3 className="text-lg font-black text-[#0F172A] leading-tight mb-3 uppercase tracking-tight">{curso.title}</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-6 h-12 line-clamp-2 font-medium">{curso.desc}</p>
+                    <button className="w-full py-3 bg-[#0F172A] text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#FFD700] hover:text-[#0F172A] transition-all shadow-lg">
+                      Más información
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* --- SECCIÓN CTA FINAL --- */}
+        <section className="relative py-32 bg-[#0F172A] overflow-hidden text-center">
+          <div className="absolute inset-0 opacity-[0.15] z-0" 
+            style={{ backgroundImage: `radial-gradient(#ffffff 1px, transparent 1px)`, backgroundSize: '30px 30px' }}>
+          </div>
+          <div className="max-w-4xl mx-auto px-6 relative z-10">
+            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-6">¿Ya realizaste tu curso?</h2>
+            <p className="text-blue-100/70 text-lg mb-12 font-medium max-w-2xl mx-auto">Valida la legalidad de tu certificación en nuestra base de datos oficial.</p>
+            <a href="/certificados" className="inline-block px-12 py-5 bg-[#FFD700] text-[#0F172A] rounded-full font-black uppercase tracking-widest hover:bg-white hover:scale-110 transition-all duration-500 shadow-xl">
+              Validar Certificado Ahora
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
