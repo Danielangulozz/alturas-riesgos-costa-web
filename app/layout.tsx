@@ -18,11 +18,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/logo-blanco.png",
+        url: "/logo-blanco.webp",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/logo-negro.png",
+        url: "/logo-negro.webp",
         media: "(prefers-color-scheme: dark)",
       },
     ],

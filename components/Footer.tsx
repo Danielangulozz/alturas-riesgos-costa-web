@@ -34,7 +34,7 @@ export default function Footer() {
             <ul className="space-y-3 text-sm text-slate-500">
               <li className="flex items-start gap-2">
                 <FaMapMarkerAlt className="mt-1 text-[#FFD700]" />
-                <span>Sincelejo, Sucre <br /> Troncal de Occidente</span>
+                <span>Sincelejo, Sucre <br /> Cra 17 #27-35 Calle Nariño. </span>
               </li>
               <li className="flex items-center gap-2">
                 <FaEnvelope className="text-[#FFD700]" />
@@ -48,7 +48,7 @@ export default function Footer() {
             <h4 className="font-bold text-[#0F172A] dark:text-white mb-4">Síguenos</h4>
             <div className="flex gap-4 mb-6">
               <a href="#" className="text-slate-400 hover:text-[#1E3A8A] text-xl transition"><FaFacebook /></a>
-              <a href="#" className="text-slate-400 hover:text-[#1E3A8A] text-xl transition"><FaInstagram /></a>
+              <a href="https://www.instagram.com/alturasyriesgos/" className="text-slate-400 hover:text-[#1E3A8A] text-xl transition"><FaInstagram /></a>
             </div>
             <ul className="space-y-2 text-[11px] text-slate-400 font-medium">
               <li><Link href="/privacidad" className="hover:underline">Política de Privacidad</Link></li>

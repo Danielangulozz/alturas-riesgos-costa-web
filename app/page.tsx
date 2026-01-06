@@ -1,6 +1,4 @@
 import Hero from "@/components/Hero";
-import Navbar from "@/components/Navbar"; // Asegúrate de tenerlo aquí o en layout.tsx
-import Footer from "@/components/Footer";
 import Image from "next/image";
 import { 
   FaClock, 
@@ -9,10 +7,19 @@ import {
   FaUsers, 
   FaUserGraduate, 
   FaSyncAlt,
-  FaCheckCircle 
+  FaCheckCircle,
+  FaHardHat,
+  FaBuilding
 } from "react-icons/fa";
 
 export default function HomePage() {
+  const academiaFotos = [
+    { title: "Pista de Entrenamiento", desc: "Estructuras certificadas para práctica real.", img: "/persona.jpg" },
+    { title: "Equipamiento Técnico", desc: "Arneses y conectores de última generación.", img: "/equipament.jpg" },
+    { title: "Aulas Teóricas", desc: "Espacios climatizados para formación técnica.", img: "/aula.jpg" },
+    { title: "Simulación de Rescate", desc: "Escenarios controlados de alta complejidad.", img: "/rescate.jpg" }
+  ];
+
   const cursos = [
     {
       title: "Jefes de Área",
@@ -20,7 +27,7 @@ export default function HomePage() {
       duration: "8 Horas",
       reqs: "Cédula y Examen",
       icon: <FaUserShield />,
-      img: "/pic1.jpeg" 
+      img: "/picboss.webp" 
     },
     {
       title: "Trabajador Autorizado",
@@ -28,7 +35,7 @@ export default function HomePage() {
       duration: "32 Horas",
       reqs: "Aptitud Médica",
       icon: <FaUsers />,
-      img: "/pic1.jpeg"
+      img: "/pictrabj.webp"
     },
     {
       title: "Coordinador de Alturas",
@@ -36,7 +43,7 @@ export default function HomePage() {
       duration: "80 Horas",
       reqs: "Exp. Certificada",
       icon: <FaUserGraduate />,
-      img: "/pic1.jpeg"
+      img: "/piccoo.webp"
     },
     {
       title: "Reentrenamiento",
@@ -44,20 +51,17 @@ export default function HomePage() {
       duration: "8 Horas",
       reqs: "Certificado Previo",
       icon: <FaSyncAlt />,
-      img: "/pic1.jpeg"
+      img: "/picree.webp"
     }
   ];
 
   return (
-    /* flex flex-col min-h-screen es el TRUCO MAESTRO. 
-       Hace que el footer siempre se vaya al final sin importar la info que agregues */
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white font-sans">
       <main className="flex-grow">
         <Hero />
 
         {/* --- SECCIÓN QUIÉNES SOMOS --- */}
         <section className="relative max-w-7xl mx-auto px-6 py-24">
-          {/* Textura de puntos sutil */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
             style={{ backgroundImage: `radial-gradient(#0F172A 1px, transparent 1px)`, backgroundSize: '30px 30px' }}>
           </div>
@@ -93,6 +97,56 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* --- SECCIÓN GALERÍA (CON DEGRADADO PROVISIONAL) --- */}
+        <section className="py-24 bg-[#0F172A] relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+              <div>
+                <h2 className="text-4xl font-black text-white uppercase tracking-tighter">
+                  Nuestro centro de entrenamiento
+                </h2>
+                <p className="text-blue-100/60 font-bold uppercase tracking-widest text-xs mt-2">
+                  Infraestructura técnica de vanguardia
+                </p>
+              </div>
+              <div className="flex gap-4 text-white/20 text-4xl hidden md:flex">
+                 <FaHardHat /> <FaBuilding />
+              </div>
+            </div>
+
+            {/* TARJETAS CON DEGRADADO ANIMADO */}
+            <div className="flex flex-col md:flex-row gap-4 h-[500px]">
+              {academiaFotos.map((foto, idx) => (
+                <div 
+                  key={idx} 
+                  className="relative flex-1 hover:flex-[2.5] transition-all duration-700 ease-in-out group overflow-hidden rounded-3xl border border-white/10"
+                >
+                  {/* Fondo provisional: Degradado animado */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] via-[#0F172A] to-[#1E40AF] animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform duration-700"></div>
+                  
+                  {/* Capa de brillo decorativa */}
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_-20%,_#ffffff,_transparent)]"></div>
+                  
+                  {/* Texto */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-transparent to-transparent opacity-90"></div>
+                  
+                  <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                    <p className="text-[#FFD700] font-black text-[10px] uppercase tracking-[0.3em] mb-2 opacity-0 group-hover:opacity-100 transition-opacity">0{idx + 1}</p>
+                    <h3 className="text-white text-xl font-black uppercase tracking-tighter">{foto.title}</h3>
+                    <p className="text-white/60 text-sm mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 line-clamp-1">
+                      {foto.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="absolute -right-20 top-20 text-[20rem] font-black text-white/[0.02] pointer-events-none select-none uppercase">
+            AR Costa
+          </div>
+        </section>
+
         {/* --- SECCIÓN SERVICIOS (CURSOS) --- */}
         <section className="bg-slate-50 py-24 relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
@@ -111,6 +165,9 @@ export default function HomePage() {
               {cursos.map((curso, idx) => (
                 <div key={idx} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 group hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
                   <div className="relative h-52 w-full overflow-hidden">
+                    {/* Skeleton loader para imágenes de cursos */}
+                    <div className="absolute inset-0 bg-slate-200 animate-pulse"></div>
+                    {/* La imagen solo se mostrará si existe */}
                     <Image src={curso.img} alt={curso.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent opacity-90"></div>
                     <div className="absolute bottom-4 left-4 text-[#FFD700] text-3xl drop-shadow-lg">{curso.icon}</div>
