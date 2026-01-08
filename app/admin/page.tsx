@@ -4,32 +4,65 @@ import React, { useState, useEffect } from "react";
 import { 
   FaUsers, FaUserPlus, FaSignOutAlt, FaUserCog, FaEnvelope, FaShieldAlt, 
   FaTrash, FaIdCard, FaFileMedical, FaShieldVirus, FaBars, FaTimes,
-  FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle, FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaSave
+  FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle, 
+  FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaHistory, 
+  FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock
 } from "react-icons/fa";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
+// --- COMPONENTE: MODAL REPORTE (NUEVO) ---
+function ModalReporte({ isOpen, onClose, texto }: { isOpen: boolean, onClose: () => void, texto: string }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+        <div className="bg-[#0F172A] p-4 text-white flex justify-between items-center">
+          <h3 className="font-bold flex items-center gap-2"><FaEnvelope className="text-yellow-400"/> Notificación</h3>
+          <button onClick={onClose}><FaTimes/></button>
+        </div>
+        <div className="p-6">
+          <textarea className="w-full h-48 p-4 bg-slate-50 border rounded-xl text-xs font-mono text-slate-700 resize-none outline-none" value={texto} readOnly />
+          <button onClick={() => { navigator.clipboard.writeText(texto); toast.success("Copiado"); }} className="mt-4 w-full py-3 bg-[#1E3A8A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-900 transition shadow-lg">
+            <FaCopy/> Copiar Texto
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   
-  // --- ESTADOS ---
+  // --- ESTADOS GLOBALES ---
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("solicitudes");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // INFO USUARIO
   const [userEmail, setUserEmail] = useState<string | undefined>("");
-  const [busqueda, setBusqueda] = useState("");
+  const [userName, setUserName] = useState("Cargando...");
+  const [userRole, setUserRole] = useState("");
   const [horaIngreso] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
+  // DATOS
   const [estudiantes, setEstudiantes] = useState<any[]>([]);
+  const [preinscripciones, setPreinscripciones] = useState<any[]>([]); // DATA WEB
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
   const [agendaBD, setAgendaBD] = useState<any[]>([]);
+  const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
+  const [logsRecientes, setLogsRecientes] = useState<any[]>([]); // LOGS
+
+  // ESTADOS AUXILIARES (Filtros, Modales, Edición)
+  const [busqueda, setBusqueda] = useState("");
   const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
   const [preciosEditados, setPreciosEditados] = useState<{ [key: string]: string }>({});
-  const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
-
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0]);
   const [horaNueva, setHoraNueva] = useState("07:00");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [textoReporte, setTextoReporte] = useState("");
 
   const listaCursos = [
     "Trabajo en alturas – Nivel básico", "Trabajo en alturas – Nivel avanzado",
@@ -45,29 +78,50 @@ export default function AdminDashboard() {
     estadoPago: "Pendiente", email: "", precio_pactado: "" 
   });
 
-  // --- CARGA DE DATOS ---
+  // --- CARGA DE DATOS COMPLETA ---
   const fetchData = async () => {
+    // 1. Datos Antiguos
     const { data: est } = await supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
     const { data: sol } = await supabase.from('solicitudes').select('*').order('created_at', { ascending: false });
     const { data: age } = await supabase.from('agenda').select('*').order('fecha', { ascending: true });
     const { data: cat } = await supabase.from('configuracion_cursos').select('*');
     
+    // 2. Datos Nuevos (Web y Logs)
+    const { data: pre } = await supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
+    const { data: logs } = await supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20);
+
     if (est) setEstudiantes(est);
     if (sol) setSolicitudes(sol);
     if (age) setAgendaBD(age);
     if (cat) setCatalogoCursos(cat);
+    if (pre) setPreinscripciones(pre);
+    if (logs) setLogsRecientes(logs);
   };
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) router.push("/admin/login");
-      else { setUserEmail(session.user.email); setLoading(false); fetchData(); }
+      if (!session) { router.push("/admin/login"); return; }
+      
+      setUserEmail(session.user.email);
+      
+      // Obtener perfil detallado para el nombre y rol
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (profile) {
+        setUserName(profile.full_name || "Admin");
+        setUserRole(profile.role || "coordinator");
+      } else {
+        setUserName("Admin General");
+        setUserRole("admin_general");
+      }
+      
+      setLoading(false); 
+      fetchData();
     };
     checkUser();
   }, [router]);
 
-  // --- LÓGICA DE NEGOCIO ---
+  // --- LÓGICA: WHATSAPP Y PRECIOS (ANTIGUO) ---
   const obtenerPrecioBase = (nombreCurso: string) => {
     const curso = catalogoCursos.find(c => c.nombre_curso === nombreCurso);
     return curso ? parseFloat(curso.precio_base) : 180000;
@@ -93,15 +147,12 @@ export default function AdminDashboard() {
     return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, (c) => c.toUpperCase());
   };
 
-  // --- WHATSAPP (CON LÓGICA DE EMPRESA) ---
   const enviarWhatsAppMultifecha = (sol: any) => {
     const seleccion = agendaBD.filter(a => fechasSeleccionadas.includes(a.id));
     if (seleccion.length === 0) return toast.error("Selecciona fechas primero");
     
     const pFinal = preciosEditados[sol.id] || calcularTotalSolicitud(sol, 0);
     const esEmpresa = sol.tipo_cliente === "Empresa";
-    
-    // Nombre con empresa entre paréntesis solo si aplica
     const nombreCliente = esEmpresa ? `${sol.nombre} (${sol.empresa.toUpperCase()})` : sol.nombre;
 
     let detallesCursosYFechas = "";
@@ -114,7 +165,6 @@ export default function AdminDashboard() {
         .join("\n");
       
       if (fechasDeEsteCurso) {
-        // Incluir cantidad de personas solo si es empresa
         const infoCurso = esEmpresa ? `*${item.curso.toUpperCase()}* (${item.cantidad} personas)` : `*${item.curso.toUpperCase()}*`;
         detallesCursosYFechas += `\n${infoCurso}:\n${fechasDeEsteCurso}\n`;
       }
@@ -130,7 +180,64 @@ export default function AdminDashboard() {
     setFechasSeleccionadas([]);
   };
 
-  // --- ACCIONES BASE DE DATOS ---
+  // --- LÓGICA: NUEVA DE VERIFICACIÓN (SEMAFORO) ---
+  const registrarLog = async (action: string, details: string) => {
+    await supabase.from('logs_actividad').insert([{ admin_name: userName, action, details }]);
+  };
+
+  const toggleVerificacion = async (item: any, docId: string, docLabel: string) => {
+    // 1. Obtener estado actual
+    const currentVerification = item.doc_verification || {};
+    const currentState = currentVerification[docId]?.status || 'pending';
+
+    // 2. Determinar nuevo estado (Ciclo: Pending -> Approved -> Rejected -> Approved)
+    let newState = 'approved';
+    if (currentState === 'approved') newState = 'rejected';
+    else if (currentState === 'rejected') newState = 'approved';
+
+    // 3. Crear objeto de actualización
+    const timestamp = new Date().toLocaleString('es-CO');
+    const newVerificationData = {
+      ...currentVerification,
+      [docId]: { status: newState, by: userName, at: timestamp }
+    };
+
+    // 4. Guardar en BD (Detectar si es de estudiantes o preinscripciones)
+    const tabla = item.origen; 
+    const { error } = await supabase.from(tabla).update({ doc_verification: newVerificationData }).eq('id', item.id);
+
+    if (!error) {
+      if(newState === 'approved') toast.success(`✅ ${docLabel} Aprobado`);
+      if(newState === 'rejected') toast.error(`❌ ${docLabel} Rechazado`);
+      await registrarLog(newState === 'approved' ? "Aprobó Documento" : "Rechazó Documento", `${docLabel} de ${item.nombre} (${newState.toUpperCase()})`);
+      fetchData();
+    } else {
+      toast.error("Error al guardar estado");
+    }
+  };
+
+  const obtenerRequeridos = (curso: string) => {
+    const c = (curso || "").toLowerCase();
+    let reqs: { id: string; label: string; oldId: string | null; icon: any }[] = [
+      { id: 'url_cc', label: 'Cédula', oldId: 'url_cedula', icon: <FaIdCard/> },
+      { id: 'url_arl', label: 'ARL', oldId: 'url_seguridad_social', icon: <FaShieldVirus/> },
+      { id: 'url_emo', label: 'Médico', oldId: 'url_medico', icon: <FaFileMedical/> },
+      { id: 'url_eps', label: 'EPS', oldId: 'url_seguridad_social', icon: <FaShieldVirus/> }
+    ];
+    if (c.includes("reentrenamiento") || c.includes("coordinador") || c.includes("jefe")) {
+      reqs.push({ id: 'url_cert_altura', label: 'Cert. Altura', oldId: 'url_cert_altura', icon: <FaFilePdf/> });
+    }
+    if (c.includes("coordinador") || c.includes("jefe")) {
+      reqs.push({ id: 'url_cert_sst', label: 'SST 20h', oldId: 'url_cert_sst', icon: <FaFilePdf/> });
+    }
+    return reqs;
+  };
+
+  const getDocUrl = (item: any, docId: string, oldId: string | null) => {
+    return item[docId] || (oldId ? item[oldId] : null);
+  };
+
+  // --- ACCIONES BD GENERALES ---
   const registrarEstudiante = async (e: React.FormEvent) => {
     e.preventDefault();
     const tId = toast.loading("Matriculando...");
@@ -140,7 +247,7 @@ export default function AdminDashboard() {
       telefono: formData.telefono,
       curso: formData.curso,
       email: formData.email,
-      estado_pago: formData.estadoPago, // Corrección de nombre de columna
+      estado_pago: formData.estadoPago,
       estado_documentacion: "Pendiente",
       resultado_final: "Pendiente",
       precio_final: formData.precio_pactado || (obtenerPrecioBase(formData.curso) - (obtenerPrecioBase(formData.curso) * (descuentoAplicado/100))).toLocaleString('es-CO')
@@ -159,9 +266,9 @@ export default function AdminDashboard() {
     if (!error) { toast.success("Precio actualizado"); fetchData(); }
   };
 
-  const actualizarEstadoEstudiante = async (id: string, campo: string, valor: string) => {
-    const { error } = await supabase.from('estudiantes').update({ [campo]: valor }).eq('id', id);
-    if (!error) { toast.success("Actualizado"); fetchData(); }
+  const actualizarEstadoEstudiante = async (tabla: string, id: string, campo: string, valor: string, nombre: string) => {
+    const { error } = await supabase.from(tabla).update({ [campo]: valor }).eq('id', id);
+    if (!error) { toast.success("Actualizado"); registrarLog("Editó Dato", `Cambió ${campo} en ${nombre}`); fetchData(); }
   };
 
   const guardarEnAgenda = async () => {
@@ -169,17 +276,51 @@ export default function AdminDashboard() {
     if (!error) { toast.success("Agenda actualizada"); fetchData(); }
   };
 
-  const estudiantesFiltrados = estudiantes.filter((est: any) => {
-    const term = busqueda.toLowerCase();
-    return (est.nombre || "").toLowerCase().includes(term) || (est.cedula || "").toString().includes(term);
-  });
+  const generarReporte = (est: any) => {
+    const requeridos = obtenerRequeridos(est.curso);
+    const verif = est.doc_verification || {};
+    const faltantes: string[] = [];
+    const rechazados: string[] = [];
+
+    requeridos.forEach(req => {
+      if (!getDocUrl(est, req.id, req.oldId)) faltantes.push(req.label);
+      else if (verif[req.id]?.status === 'rejected') rechazados.push(req.label);
+    });
+    
+    let msg = `Hola *${est.nombre}*, mensaje de AR Costa.\nCurso: *${est.curso}*.\n\n`;
+    if (faltantes.length === 0 && rechazados.length === 0) {
+      msg += `✅ *DOCUMENTACIÓN APROBADA*.\nEstado Pago: *${est.estado_pago || 'Pendiente'}*.\n`;
+    } else {
+      msg += `⚠️ *NOVEDADES EN DOCUMENTACIÓN*:\n`;
+      if(rechazados.length > 0) rechazados.forEach(f => msg += `❌ ${f} (Rechazado/Illegible)\n`);
+      if(faltantes.length > 0) faltantes.forEach(f => msg += `⚠️ ${f} (Faltante)\n`);
+    }
+    msg += `\nAtte: ${userName}.`;
+    setTextoReporte(msg);
+    setModalOpen(true);
+  };
+
+  const borrarRegistro = async (tabla: string, id: string) => {
+    if (userRole !== 'admin_general') return toast.error("⛔ Acceso Denegado");
+    if(!confirm("¿Borrar permanentemente?")) return;
+    const { error } = await supabase.from(tabla).delete().eq('id', id);
+    if (!error) { toast.success("Eliminado"); fetchData(); }
+  };
+
+  // --- FILTROS ---
+  const listaUnificada = [
+    ...preinscripciones.map(p => ({ ...p, origen: 'preinscripciones', etiqueta: 'WEB' })),
+    ...estudiantes.map(e => ({ ...e, origen: 'estudiantes', etiqueta: 'MANUAL' }))
+  ].filter(i => JSON.stringify(i).toLowerCase().includes(busqueda.toLowerCase()));
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#f1f5f9] font-bold text-slate-400">CARGANDO...</div>;
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] text-[#334155] overflow-hidden">
       <Toaster position="bottom-right" />
+      <ModalReporte isOpen={modalOpen} onClose={() => setModalOpen(false)} texto={textoReporte} />
       
+      {/* SIDEBAR */}
       <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-[#1e293b] text-white rounded-xl shadow-lg">
         {isSidebarOpen ? <FaTimes size={20}/> : <FaBars size={20}/>}
       </button>
@@ -192,6 +333,7 @@ export default function AdminDashboard() {
             { id: 'agenda', icon: <FaCalendarAlt />, label: 'Calendario / Agenda' },
             { id: 'estudiantes', icon: <FaUserPlus />, label: 'Matricular Nuevo' },
             { id: 'lista', icon: <FaUsers />, label: 'Base de Datos' },
+            { id: 'logs', icon: <FaHistory />, label: 'Auditoría / Logs' },
             { id: 'listados', icon: <FaUserCheck />, label: 'Planillas de Clase' },
             { id: 'precios', icon: <FaMoneyBillWave />, label: 'Precios Cursos' },
             { id: 'config', icon: <FaUserCog />, label: 'Mi Perfil' },
@@ -205,32 +347,33 @@ export default function AdminDashboard() {
       </aside>
 
       <main className="flex-1 h-screen overflow-y-auto relative bg-[#f1f5f9] pt-16 lg:pt-0">
-        <div className="p-4 md:p-10 max-w-7xl mx-auto">
+        <div className="p-4 md:p-10 max-w-[1800px] mx-auto">
+          
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-            <h2 className="text-2xl font-bold text-[#1e293b] capitalize">{activeTab.replace('precios', 'Configuración de Precios')}</h2>
+            <div>
+              <h2 className="text-2xl font-bold text-[#1e293b] capitalize">{activeTab.replace('precios', 'Configuración de Precios')}</h2>
+              <p className="text-xs text-slate-500 font-bold uppercase mt-1">Panel Administrativo</p>
+            </div>
             <div className="flex items-center gap-3 bg-white p-2 pr-5 rounded-full border border-slate-200 shadow-sm">
               <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white uppercase">{userEmail?.charAt(0)}</div>
-              <div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{userEmail}</span><span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">🟢 Conectado</span></div>
+              <div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{userName}</span><span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">🟢 Conectado</span></div>
             </div>
           </header>
 
-          {/* VISTA: SOLICITUDES */}
+          {/* --- VISTA: SOLICITUDES (ANTIGUO) --- */}
           {activeTab === "solicitudes" && (
             <div className="grid gap-6 animate-in fade-in">
               {solicitudes.map((sol) => (
                 <div key={sol.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-md">
-                   <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         {sol.tipo_cliente === "Empresa" ? <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-lg font-bold flex items-center gap-1"><FaBuilding/> EMPRESA: {sol.empresa}</span> : <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-lg font-bold flex items-center gap-1"><FaUsers/> PARTICULAR</span>}
                       </div>
                       <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FaUserTie className="text-slate-400" size={14}/> {sol.nombre}</h4>
-                      
-                      {/* MOSTRAR DISPONIBILIDAD/OBSERVACIONES DEL CLIENTE */}
                       {sol.disponibilidad_cliente && (
                         <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-800 italic">
-                          <b className="text-[10px] uppercase not-italic block mb-1 text-amber-600">Disponibilidad/Observaciones:</b>
-                          "{sol.disponibilidad_cliente}"
+                          <b className="text-[10px] uppercase not-italic block mb-1 text-amber-600">Disponibilidad/Observaciones:</b> "{sol.disponibilidad_cliente}"
                         </div>
                       )}
                     </div>
@@ -280,7 +423,81 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* VISTA: PRECIOS MAESTROS (RESTAURADA) */}
+          {/* --- VISTA: LISTA BASE DE DATOS (NUEVA CON LÓGICA DE SEMÁFORO) --- */}
+          {activeTab === "lista" && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
+                <input type="text" placeholder="Buscar por nombre o cédula..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl outline-none" />
+                <button onClick={fetchData} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-600 flex items-center gap-2"><FaSync/> Actualizar</button>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[1200px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase border-b font-black tracking-widest">
+                        <th className="px-6 py-4">Estudiante / Cédula</th>
+                        <th className="px-6 py-4">Documentación</th>
+                        <th className="px-6 py-4">Pago / Valor Final</th>
+                        <th className="px-6 py-4">Aptitud</th>
+                        <th className="px-6 py-4">Asignar Clase</th>
+                        <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {listaUnificada.map((item: any) => {
+                      const reqs = obtenerRequeridos(item.curso);
+                      const verificacion = item.doc_verification || {};
+
+                      return (
+                      <tr key={item.id + item.origen} className="hover:bg-slate-50 transition group">
+                        <td className="px-6 py-4">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black mb-1 ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>{item.etiqueta}</span>
+                            <div className="font-bold text-slate-700">{item.nombre}</div>
+                            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10}/> {item.cedula}</div>
+                            <div className="text-[10px] text-blue-500 font-bold uppercase mt-1">{item.curso}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5">
+                                {reqs.map(r => (
+                                    <DocButton 
+                                        key={r.id}
+                                        label={r.label}
+                                        url={getDocUrl(item, r.id, r.oldId)}
+                                        icon={r.icon}
+                                        statusData={verificacion[r.id]}
+                                        onToggle={() => toggleVerificacion(item, r.id, r.label)}
+                                    />
+                                ))}
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                            <select value={item.estado_pago || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre)} className={`text-[10px] p-1.5 rounded border-none font-bold w-full mb-1 ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><option value="Pendiente">PENDIENTE</option><option value="Pagado">PAGADO</option></select>
+                            <div className="flex items-center gap-1 font-bold text-blue-600 text-xs">$ <input defaultValue={item.precio_final || item.precio_pactado || "0"} onBlur={(e) => actualizarEstadoEstudiante(item.origen, item.id, item.origen === 'preinscripciones' ? 'precio_pactado' : 'precio_final', e.target.value, item.nombre)} className="w-20 bg-transparent outline-none border-b border-transparent hover:border-blue-300"/></div>
+                        </td>
+                        <td className="px-6 py-4"><select value={item.resultado_final || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre)} className={`text-[10px] p-1.5 rounded font-black w-full ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}><option>Pendiente</option><option>APTO</option><option>NO APTO</option></select></td>
+                        <td className="px-6 py-4">{item.resultado_final === "APTO" ? (item.agenda_id ? <span className="text-[10px] font-bold text-green-600 flex items-center gap-1"><FaCheckCircle/> ASIGNADO</span> : <select className="text-[10px] p-1 border rounded bg-blue-50 w-full" onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'agenda_id', e.target.value)}><option value="">Elegir fecha...</option>{agendaBD.filter(a => a.curso === item.curso).map(a => <option key={a.id} value={a.id}>{formatFechaElegante(a.fecha)}</option>)}</select>) : "N/A"}</td>
+                        <td className="px-6 py-4 text-center space-y-2">
+                            <button onClick={() => generarReporte(item)} className="w-full py-1.5 bg-slate-800 text-white rounded text-[9px] font-bold uppercase hover:bg-slate-900 transition flex items-center justify-center gap-1"><FaEnvelope className="text-yellow-400"/> Reporte</button>
+                            <button onClick={() => borrarRegistro(item.origen, item.id)} className="text-red-300 hover:text-red-500 transition"><FaTrash size={12}/></button>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* --- VISTA: LOGS (NUEVA) --- */}
+          {activeTab === 'logs' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 animate-in fade-in">
+              <h3 className="font-bold text-slate-700 flex items-center gap-2"><FaHistory/> Historial de Actividad</h3>
+              {logsRecientes.map(log => (<div key={log.id} className="border-b pb-2 last:border-0"><p className="text-sm font-bold text-slate-800">{log.action} <span className="font-normal text-slate-500">por {log.admin_name}</span></p><p className="text-xs text-slate-400">{log.details} • {new Date(log.created_at).toLocaleString()}</p></div>))}
+            </div>
+          )}
+
+          {/* --- VISTA: PRECIOS MAESTROS (ANTIGUO) --- */}
           {activeTab === "precios" && (
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in">
               <div className="p-6 border-b bg-slate-50"><h3 className="font-bold text-slate-700 flex items-center gap-2"><FaMoneyBillWave className="text-blue-600"/> Lista de Precios Base</h3></div>
@@ -291,9 +508,7 @@ export default function AdminDashboard() {
                     <tr key={c.id} className="hover:bg-slate-50 transition">
                       <td className="px-6 py-4 font-bold text-slate-700">{c.nombre_curso}</td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1 text-blue-600 font-bold">$ 
-                          <input type="number" defaultValue={c.precio_base} onBlur={(e) => actualizarPrecioMaestro(c.id, e.target.value)} className="bg-transparent border-b border-blue-200 w-24 outline-none focus:border-blue-600 transition-colors" />
-                        </div>
+                        <div className="flex items-center gap-1 text-blue-600 font-bold">$ <input type="number" defaultValue={c.precio_base} onBlur={(e) => actualizarPrecioMaestro(c.id, e.target.value)} className="bg-transparent border-b border-blue-200 w-24 outline-none focus:border-blue-600 transition-colors" /></div>
                       </td>
                       <td className="px-6 py-4"><span className="text-[10px] text-slate-400 italic">Auto-guardar al salir del campo</span></td>
                     </tr>
@@ -303,6 +518,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* --- VISTA: AGENDA (ANTIGUO) --- */}
           {activeTab === "agenda" && (
             <div className="grid md:grid-cols-3 gap-6 animate-in fade-in">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 h-fit">
@@ -326,6 +542,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* --- VISTA: LISTADOS (ANTIGUO) --- */}
           {activeTab === "listados" && (
             <div className="space-y-6 animate-in fade-in">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="font-bold mb-2">Ver Planilla del Día</h3><input type="date" className="p-2 border rounded-lg" value={fechaSeleccionada} onChange={(e) => setFechaSeleccionada(e.target.value)} /></div>
@@ -338,6 +555,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* --- VISTA: ESTUDIANTES MANUALES (ANTIGUO) --- */}
           {activeTab === "estudiantes" && (
             <div className="max-w-4xl bg-white rounded-3xl p-8 border border-slate-200 shadow-sm mx-auto animate-in fade-in">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaUserPlus className="text-blue-600"/> Matriculación Manual</h3>
@@ -347,16 +565,10 @@ export default function AdminDashboard() {
                 <select required className="md:col-span-2 p-3 bg-slate-50 border rounded-xl outline-none" value={formData.curso} onChange={(e)=>setFormData({...formData, curso: e.target.value})}><option value="">Seleccione el curso...</option>{listaCursos.map(c => <option key={c} value={c}>{c}</option>)}</select>
                 <input placeholder="WhatsApp" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.telefono} onChange={(e)=>setFormData({...formData, telefono: e.target.value})} />
                 <input type="email" placeholder="Correo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} />
-                
-                {/* SELECTOR ESTADO DE PAGO */}
                 <div className="md:col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Estado del Pago</label>
-                  <select className="w-full p-3 bg-slate-50 border rounded-xl outline-none mt-1" value={formData.estadoPago} onChange={(e)=>setFormData({...formData, estadoPago: e.target.value})}>
-                    <option value="Pendiente">Pendiente</option>
-                    <option value="Pagado">Pagado</option>
-                  </select>
+                  <select className="w-full p-3 bg-slate-50 border rounded-xl outline-none mt-1" value={formData.estadoPago} onChange={(e)=>setFormData({...formData, estadoPago: e.target.value})}><option value="Pendiente">Pendiente</option><option value="Pagado">Pagado</option></select>
                 </div>
-
                 <div className="md:col-span-2 flex gap-2">{[0, 10, 20, 30].map(d => (<button key={d} type="button" onClick={() => setDescuentoAplicado(d)} className={`flex-1 p-3 rounded-xl text-xs font-bold border ${descuentoAplicado === d ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{d === 0 ? 'Sin Descuento' : `${d}% OFF`}</button>))}</div>
                 <input placeholder="Valor Pactado ($)" className="p-3 bg-blue-50 border border-blue-100 rounded-xl outline-none font-bold text-blue-700" value={formData.precio_pactado || (obtenerPrecioBase(formData.curso) - (obtenerPrecioBase(formData.curso) * (descuentoAplicado/100))).toLocaleString('es-CO')} onChange={(e)=>setFormData({...formData, precio_pactado: e.target.value})} />
                 <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg">Completar Matrícula</button>
@@ -364,99 +576,87 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === "lista" && (
-            <div className="space-y-4 animate-in fade-in">
-              <input type="text" placeholder="Buscar por nombre o cédula..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full p-2 bg-white border rounded-xl outline-none" />
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                <table className="w-full text-left text-sm min-w-[1200px]">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase border-b font-black tracking-widest"><th className="px-6 py-4">Estudiante / Cédula</th><th className="px-6 py-4">Archivos</th><th className="px-6 py-4">Pago / Valor Final</th><th className="px-6 py-4">Aptitud</th><th className="px-6 py-4">Asignar Clase</th><th className="px-6 py-4 text-center">Acciones</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {estudiantesFiltrados.map((est: any) => (
-                      <tr key={est.id} className="hover:bg-slate-50 transition">
-                        <td className="px-6 py-4"><div className="font-bold text-slate-700">{est.nombre}</div><div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10}/> {est.cedula}</div><div className="text-[10px] text-blue-500 font-bold uppercase">{est.curso}</div></td>
-                        <td className="px-6 py-4"><div className="flex flex-col gap-1"><DocButton label="CÉDULA" url={est.url_cedula} icon={<FaIdCard/>} color="blue" /><DocButton label="MÉDICO" url={est.url_medico} icon={<FaFileMedical/>} color="emerald" /><DocButton label="SSALUD" url={est.url_seguridad_social} icon={<FaShieldVirus/>} color="purple" /></div></td>
-                        <td className="px-6 py-4"><select value={est.estado_pago || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(est.id, 'estado_pago', e.target.value)} className="text-[10px] p-1 bg-slate-100 rounded border-none font-bold"><option>Pendiente</option><option>Pagado</option></select><div className="text-blue-600 font-bold">$ {est.precio_final}</div></td>
-                        <td className="px-6 py-4"><select value={est.resultado_final || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(est.id, 'resultado_final', e.target.value)} className={`text-[10px] p-1.5 rounded font-black ${est.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}><option>Pendiente</option><option>APTO</option><option>NO APTO</option></select></td>
-                        <td className="px-6 py-4">{est.resultado_final === "APTO" ? (est.agenda_id ? <span className="text-[10px] font-bold text-green-600 flex items-center gap-1"><FaCheckCircle/> ASIGNADO</span> : <select className="text-[10px] p-1 border rounded bg-blue-50 w-full" onChange={(e) => actualizarEstadoEstudiante(est.id, 'agenda_id', e.target.value)}><option value="">Elegir fecha...</option>{agendaBD.filter(a => a.curso === est.curso).map(a => <option key={a.id} value={a.id}>{formatFechaElegante(a.fecha)}</option>)}</select>) : "N/A"}</td>
-                        <td className="px-6 py-4 text-center"><button onClick={async () => { if(confirm("¿Eliminar?")) { await supabase.from('estudiantes').delete().eq('id', est.id); fetchData(); }}} className="text-red-300 hover:text-red-500 transition"><FaTrash size={12}/></button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* --- VISTA: CONFIGURACIÓN (ANTIGUO) --- */}
+          {activeTab === "config" && (
+            <div className="max-w-2xl bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mx-auto animate-in fade-in">
+              <div className="bg-gradient-to-r from-[#1e293b] to-[#334155] p-8 text-white flex justify-between items-center">
+                <div><h3 className="text-2xl font-bold">Mi Perfil</h3><p className="text-blue-400 text-xs uppercase tracking-widest font-bold mt-1">Sesión Administrativa</p></div>
+                <FaUserCog size={40} className="opacity-20"/>
+              </div>
+              <div className="p-8 space-y-4">
+                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FaEnvelope size={20}/></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Usuario</p><p className="text-lg font-bold text-slate-700">{userEmail}</p></div>
+                </div>
+                <div className="flex items-center gap-4 p-5 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><FaShieldAlt size={20}/></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Rango de Acceso</p><p className="text-lg font-bold text-emerald-700">Administrador General</p></div>
+                </div>
+                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="p-3 bg-slate-200 text-slate-600 rounded-xl"><FaSync size={20}/></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Hora de ingreso al panel</p><p className="text-sm font-mono text-slate-600 font-bold">{horaIngreso}</p></div>
+                </div>
+                <div className="pt-6 border-t border-slate-100 mt-4">
+                  <button onClick={() => { if(confirm("¿Seguro que deseas cerrar sesión?")) { supabase.auth.signOut().then(() => router.push("/admin/login")); }}} className="w-full flex items-center justify-center gap-3 bg-red-50 text-red-600 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100">
+                    <FaSignOutAlt size={18} /> Cerrar Sesión
+                  </button>
+                </div>
               </div>
             </div>
           )}
-
-{activeTab === "config" && (
-  <div className="max-w-2xl bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mx-auto animate-in fade-in">
-    {/* Encabezado con degradado */}
-    <div className="bg-gradient-to-r from-[#1e293b] to-[#334155] p-8 text-white flex justify-between items-center">
-      <div>
-        <h3 className="text-2xl font-bold">Mi Perfil</h3>
-        <p className="text-blue-400 text-xs uppercase tracking-widest font-bold mt-1">Sesión Administrativa</p>
-      </div>
-      <FaUserCog size={40} className="opacity-20"/>
-    </div>
-
-    <div className="p-8 space-y-4">
-      {/* Tarjeta de Correo */}
-      <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-        <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
-          <FaEnvelope size={20}/>
         </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase text-slate-400">Usuario</p>
-          <p className="text-lg font-bold text-slate-700">{userEmail}</p>
-        </div>
-      </div>
-
-      {/* Tarjeta de Rol Profesional */}
-      <div className="flex items-center gap-4 p-5 bg-emerald-50 rounded-2xl border border-emerald-100">
-        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-          <FaShieldAlt size={20}/>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase text-slate-400">Rango de Acceso</p>
-          <p className="text-lg font-bold text-emerald-700">Administrador General</p>
-        </div>
-      </div>
-
-      {/* Timestamp de Inicio */}
-      <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-        <div className="p-3 bg-slate-200 text-slate-600 rounded-xl">
-          <FaSync size={20}/>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase text-slate-400">Hora de ingreso al panel</p>
-          <p className="text-sm font-mono text-slate-600 font-bold">{horaIngreso}</p>
-        </div>
-      </div>
-
-      {/* Botón de Cerrar Sesión */}
-      <div className="pt-6 border-t border-slate-100 mt-4">
-        <button 
-          onClick={() => {
-            if(confirm("¿Seguro que deseas cerrar sesión?")) {
-              supabase.auth.signOut().then(() => router.push("/admin/login"));
-            }
-          }}
-          className="w-full flex items-center justify-center gap-3 bg-red-50 text-red-600 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"
-        >
-          <FaSignOutAlt size={18} /> Cerrar Sesión
-        </button>
-      </div>
-    </div>
-  </div>
-)}        </div>
       </main>
     </div>
   );
 }
 
-function DocButton({ label, url, icon, color }: { label: string, url: string, icon: any, color: string }) {
-  const colors: any = { blue: "bg-blue-50 text-blue-600 border-blue-200", emerald: "bg-emerald-50 text-emerald-600 border-emerald-200", purple: "bg-purple-50 text-purple-600 border-purple-200" };
-  if (!url) return <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-bold bg-slate-50 text-slate-300 border border-slate-100 italic">{icon} FALTANTE</span>;
-  return <a href={url} target="_blank" className={`flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-bold border transition-colors ${colors[color]}`}>{icon} {label}</a>;
+// --- SUB-COMPONENTE: BOTÓN DE DOCUMENTO INTELIGENTE ---
+function DocButton({ label, url, icon, statusData, onToggle }: { label: string, url: string | null, icon: any, statusData: any, onToggle: () => void }) {
+  const status = statusData?.status || 'pending';
+  
+  const visual = {
+    pending: { 
+      bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200", 
+      btnBg: "bg-amber-100 hover:bg-emerald-100 hover:text-emerald-600", btnIcon: <FaCheckCircle size={10}/>
+    },
+    approved: { 
+      bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", 
+      btnBg: "bg-emerald-100 text-emerald-600 hover:bg-red-100 hover:text-red-600", btnIcon: <FaCheckCircle size={10}/>
+    },
+    rejected: { 
+      bg: "bg-red-50", text: "text-red-600", border: "border-red-200", 
+      btnBg: "bg-red-100 text-red-600 hover:bg-emerald-100 hover:text-emerald-600", btnIcon: <FaTimesCircle size={10}/>
+    }
+  }[status as 'pending' | 'approved' | 'rejected'];
+
+  if (!url) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 italic opacity-70">
+        <span className="text-[10px]"><FaExclamationTriangle/></span>
+        <span className="text-[9px] font-bold uppercase">{label} (Falta)</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 group relative">
+      <a href={url} target="_blank" rel="noopener noreferrer" className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all ${visual.bg} ${visual.text} ${visual.border}`} title="Clic para abrir documento">
+        <span className="text-[10px]">{icon}</span>
+        <span className="text-[9px] font-bold uppercase">{label}</span>
+        <FaExternalLinkAlt className="ml-auto opacity-0 group-hover:opacity-50" size={8}/>
+      </a>
+      <button onClick={onToggle} className={`p-1.5 rounded-lg transition border border-transparent ${visual.btnBg} relative group/btn`}>
+        {visual.btnIcon}
+        {statusData?.by && (
+          <div className="absolute bottom-full right-0 mb-2 w-max max-w-[200px] hidden group-hover/btn:block z-50 animate-in fade-in zoom-in">
+            <div className="bg-[#1e293b] text-white text-[9px] p-2 rounded-lg shadow-xl relative">
+              <p className="font-bold flex items-center gap-1"><FaUsers size={8}/> {statusData.by}</p>
+              <p className="font-mono text-slate-300 flex items-center gap-1 mt-1"><FaClock size={8}/> {statusData.at}</p>
+              <div className="absolute top-full right-2 -mt-1 border-4 border-transparent border-t-[#1e293b]"></div>
+            </div>
+          </div>
+        )}
+      </button>
+    </div>
+  );
 }
