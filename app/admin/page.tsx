@@ -647,7 +647,29 @@ const guardarEnAgenda = async () => {
     ...estudiantes.map(e => ({ ...e, origen: 'estudiantes', etiqueta: 'MANUAL' }))
   ].filter(i => JSON.stringify(i).toLowerCase().includes(busqueda.toLowerCase()));
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-[#f1f5f9] font-bold text-slate-400">CARGANDO...</div>;
+  // Busca la parte de tu código que dice: if (loading) return ... y cámbiala por esta:
+
+if (loading) return (
+  <div className="h-screen w-full flex flex-col items-center justify-center bg-[#f8fafc]">
+    <div className="w-24 h-24">
+      {/* Este es tu SVG de 3 puntos saltarines */}
+      <svg fill="#0035ce" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="4" cy="12" r="3">
+          <animate id="spinner_qFRN" begin="0;spinner_OcgL.end+0.25s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33"/>
+        </circle>
+        <circle cx="12" cy="12" r="3">
+          <animate begin="spinner_qFRN.begin+0.1s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33"/>
+        </circle>
+        <circle cx="20" cy="12" r="3">
+          <animate id="spinner_OcgL" begin="spinner_qFRN.begin+0.2s" attributeName="cy" calcMode="spline" dur="0.6s" values="12;6;12" keySplines=".33,.66,.66,1;.33,0,.66,.33"/>
+        </circle>
+      </svg>
+    </div>
+    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mt-4 animate-pulse">
+      Cargando AYR Admin
+    </span>
+  </div>
+);
 
   
 
