@@ -1,18 +1,21 @@
 "use client";
 
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import React, { useState, useEffect } from "react";
 import { 
   FaUsers, FaUserPlus, FaSignOutAlt, FaUserCog, FaEnvelope, FaShieldAlt, 
   FaTrash, FaIdCard, FaFileMedical, FaShieldVirus, FaBars, FaTimes,
   FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle, 
   FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaHistory, 
-  FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock
+  FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock,
+  FaMapMarkerAlt, FaUser
 } from "react-icons/fa";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
-// --- COMPONENTE: MODAL REPORTE (NUEVO) ---
+// --- COMPONENTE: MODAL REPORTE ---
 function ModalReporte({ isOpen, onClose, texto }: { isOpen: boolean, onClose: () => void, texto: string }) {
   if (!isOpen) return null;
   return (
@@ -46,16 +49,25 @@ export default function AdminDashboard() {
   const [userName, setUserName] = useState("Cargando...");
   const [userRole, setUserRole] = useState("");
   const [horaIngreso] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const [listaPerfiles, setListaPerfiles] = useState<any[]>([]);
+  const [isModalEquipoOpen, setIsModalEquipoOpen] = useState(false);
+  const [formEquipo, setFormEquipo] = useState({ email: "", pass: "", nombre: "" });
+
+  
 
   // DATOS
   const [estudiantes, setEstudiantes] = useState<any[]>([]);
-  const [preinscripciones, setPreinscripciones] = useState<any[]>([]); // DATA WEB
+  const [preinscripciones, setPreinscripciones] = useState<any[]>([]); 
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
   const [agendaBD, setAgendaBD] = useState<any[]>([]);
   const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
-  const [logsRecientes, setLogsRecientes] = useState<any[]>([]); // LOGS
+  const [logsRecientes, setLogsRecientes] = useState<any[]>([]);
+  const [modalARL, setModalARL] = useState<{isOpen: boolean, item: any}>({isOpen: false, item: null});
+  const [datosARL, setDatosARL] = useState({nombre: "", nit: ""});
+  
 
-  // ESTADOS AUXILIARES (Filtros, Modales, Edición)
+
+  // ESTADOS AUXILIARES
   const [busqueda, setBusqueda] = useState("");
   const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
   const [preciosEditados, setPreciosEditados] = useState<{ [key: string]: string }>({});
@@ -63,6 +75,51 @@ export default function AdminDashboard() {
   const [horaNueva, setHoraNueva] = useState("07:00");
   const [modalOpen, setModalOpen] = useState(false);
   const [textoReporte, setTextoReporte] = useState("");
+  const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<any>(null);
+
+  const handleCrearUsuarioManual = async (email: string, pass: string, nombre: string) => {
+  if (!email || !pass || !nombre) return toast.error("Completa todos los campos");
+  if (pass.length < 6) return toast.error("La clave mínima es de 6 caracteres");
+
+  const loadingToast = toast.loading("Creando acceso para el equipo...");
+  
+  try {
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: { full_name: nombre }
+      }
+    });
+
+    if (authError) throw authError;
+
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          id: data.user.id,
+          email: email,
+          full_name: nombre,
+          role: 'trainer'
+        }
+      ]);
+
+      if (profileError) throw profileError;
+      
+      toast.success("¡Colaborador creado! Ya puede entrar con su clave.", { id: loadingToast });
+      
+      // RESETEAR CAMPOS Y QUITAR EL FORMULARIO (MODAL)
+      setFormEquipo({ email: "", pass: "", nombre: "" });
+      setIsModalEquipoOpen(false); 
+      
+      fetchData(); 
+    }
+  } catch (err: any) {
+    toast.error(`Error: ${err.message}`, { id: loadingToast });
+  }
+};
+
+
 
   const listaCursos = [
     "Trabajo en alturas – Nivel básico", "Trabajo en alturas – Nivel avanzado",
@@ -78,18 +135,108 @@ export default function AdminDashboard() {
     estadoPago: "Pendiente", email: "", precio_pactado: "" 
   });
 
-  // --- CARGA DE DATOS COMPLETA ---
+  
+  const descargarPDFAsistencia = async (bloque: any, inscritos: any[]) => {
+  const doc = new jsPDF();
+  
+  // REGISTRO DE LOG
+  registrarLog("DESCARGA PLANILLA", `Generó planilla oficial para: ${bloque.curso} del ${bloque.fecha}`);
+
+  // 1. CARGAR EL LOGO PNG
+  // Creamos una promesa para esperar que la imagen cargue antes de generar el PDF
+  const addImageProcess = () => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = '/logo.png'; // Ruta de tu archivo PNG en public
+      img.onload = () => {
+        doc.addImage(img, 'PNG', 14, 10, 25, 28);
+        resolve(true);
+      };
+      img.onerror = () => {
+        // Si falla el logo, dibujamos un cuadro azul para que no se vea vacío
+        doc.setFillColor(30, 41, 59);
+        doc.rect(14, 10, 25, 25, 'F');
+        resolve(false);
+      };
+    });
+  };
+
+  await addImageProcess();
+
+  // 2. BUSCAR EL ENTRENADOR ASIGNADO
+  // Si el bloque de agenda no trae el nombre, usamos el del perfil actual como respaldo
+  const instructorNombre = bloque.instructor_asignado || userName;
+
+  // --- ENCABEZADO ---
+  doc.setTextColor(30, 41, 59);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("ALTURAS Y RIESGOS DE LA COSTA S.A.S", 45, 20);
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("NIT: 901.713.234-2", 45, 25);
+  doc.setFont("helvetica", "bold");
+  doc.text("PLANILLA DE ASISTENCIA Y REGISTRO DE ENTRENAMIENTO", 45, 31);
+
+  // Información del Bloque
+  doc.setDrawColor(230);
+  doc.line(14, 40, 196, 40);
+
+  doc.setFontSize(9);
+  doc.text("CURSO:", 14, 48);
+  doc.setFont("helvetica", "normal");
+  doc.text(bloque.curso.toUpperCase(), 30, 48);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("ENTRENADOR:", 14, 53);
+  doc.setFont("helvetica", "normal");
+  doc.text(instructorNombre.toUpperCase(), 40, 53); // AQUÍ SALE EL ENTRENADOR DE LA BD
+
+  doc.setFont("helvetica", "bold");
+  doc.text("FECHA:", 130, 48);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${bloque.fecha} (${bloque.hora})`, 145, 48);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("FIRMA ENTRENADOR: ", 130, 55);
+  doc.setFont("helvetica", "normal");
+  doc.text(`_________________`, 165, 54);
+
+  // --- TABLA ---
+  autoTable(doc, {
+    startY: 60,
+    head: [["N°", "Nombre Completo", "Cédula", "Teléfono", "Firma del Aprendiz"]],
+    body: inscritos.map((est, index) => [
+      index + 1,
+      est.nombre.toUpperCase(),
+      est.cedula,
+      est.telefono || "N/A",
+      "________________________"
+    ]),
+    theme: 'grid',
+    headStyles: { fillColor: [30, 41, 59], fontSize: 9, halign: 'center' },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 10 }, 4: { cellWidth: 50 } }
+  });
+
+  doc.save(`Planilla_${bloque.curso.replace(/ /g, "_")}.pdf`);
+  toast.success("Planilla lista para impresión");
+};
+
+
+  // --- CARGA DE DATOS ---
   const fetchData = async () => {
-    // 1. Datos Antiguos
+    // Tablas antiguas y nuevas
     const { data: est } = await supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
     const { data: sol } = await supabase.from('solicitudes').select('*').order('created_at', { ascending: false });
     const { data: age } = await supabase.from('agenda').select('*').order('fecha', { ascending: true });
     const { data: cat } = await supabase.from('configuracion_cursos').select('*');
-    
-    // 2. Datos Nuevos (Web y Logs)
     const { data: pre } = await supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
     const { data: logs } = await supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20);
+    const { data: perf } = await supabase.from('profiles').select('*');
 
+    if (perf) setListaPerfiles(perf);
     if (est) setEstudiantes(est);
     if (sol) setSolicitudes(sol);
     if (age) setAgendaBD(age);
@@ -98,30 +245,56 @@ export default function AdminDashboard() {
     if (logs) setLogsRecientes(logs);
   };
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/admin/login"); return; }
-      
-      setUserEmail(session.user.email);
-      
-      // Obtener perfil detallado para el nombre y rol
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      if (profile) {
-        setUserName(profile.full_name || "Admin");
-        setUserRole(profile.role || "coordinator");
-      } else {
-        setUserName("Admin General");
-        setUserRole("admin_general");
-      }
-      
-      setLoading(false); 
-      fetchData();
-    };
-    checkUser();
-  }, [router]);
+useEffect(() => {
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.push("/admin/login"); return; }
+    
+    setUserEmail(session.user.email);
+    
+    // 1. Obtenemos el perfil primero
+    const { data: perfil } = await supabase.from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
 
-  // --- LÓGICA: WHATSAPP Y PRECIOS (ANTIGUO) ---
+    let nombreFinal = "Usuario";
+    let rolFinal = "trainer";
+
+    if (perfil) {
+      nombreFinal = perfil.full_name || "Usuario";
+      rolFinal = perfil.role || "trainer";
+    } else {
+      // Caso de respaldo por si no hay perfil creado aún
+      nombreFinal = session.user.email || "Admin";
+      rolFinal = "admin_general";
+    }
+
+    // 2. Actualizamos estados de la interfaz
+    setUserName(nombreFinal);
+    setUserRole(rolFinal);
+
+    // 3. REGISTRAMOS EL LOG UNA SOLA VEZ (con datos ya cargados)
+    const etiquetaLog = `[${rolFinal.toUpperCase()}] ${nombreFinal}`;
+    
+    // Usamos una inserción directa para evitar depender de la función registrarLog en este paso crítico
+    await supabase.from('logs_actividad').insert([
+      { 
+        usuario_id: session.user.id,
+        nombre_usuario: etiquetaLog,
+        accion: "INGRESO",
+        detalles: `Sesión iniciada correctamente desde el panel.`
+      }
+    ]);
+
+    setLoading(false); 
+    fetchData();
+  };
+  
+  checkUser();
+}, [router]); // Elimina cualquier otro useEffect que tenga registrarLog("INGRESO")
+
+  // --- LÓGICA DE NEGOCIO ---
   const obtenerPrecioBase = (nombreCurso: string) => {
     const curso = catalogoCursos.find(c => c.nombre_curso === nombreCurso);
     return curso ? parseFloat(curso.precio_base) : 180000;
@@ -141,6 +314,8 @@ export default function AdminDashboard() {
     const final = subtotal - (subtotal * (descuento / 100));
     return final.toLocaleString('es-CO');
   };
+
+  
 
   const formatFechaElegante = (fechaStr: string) => {
     const fecha = new Date(fechaStr + "T00:00:00");
@@ -180,41 +355,166 @@ export default function AdminDashboard() {
     setFechasSeleccionadas([]);
   };
 
-  // --- LÓGICA: NUEVA DE VERIFICACIÓN (SEMAFORO) ---
-  const registrarLog = async (action: string, details: string) => {
-    await supabase.from('logs_actividad').insert([{ admin_name: userName, action, details }]);
+  // --- LÓGICA DE ACTUALIZACIÓN Y VERIFICACIÓN ---
+const registrarLog = async (accion: string, detalles: string) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  // Si por alguna razón userName está vacío, usamos el email de la sesión
+  const idUsuario = `[${userRole.toUpperCase() || '?'}] ${userName || session.user.email}`;
+
+  await supabase.from('logs_actividad').insert([{ 
+    usuario_id: session.user.id,
+    nombre_usuario: idUsuario,
+    accion: accion,
+    detalles: detalles
+  }]);
+};
+useEffect(() => {
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.push("/admin/login"); return; }
+    
+    setUserEmail(session.user.email);
+    
+    // Traemos el perfil
+    const { data: perfil } = await supabase.from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    // Variables locales para uso inmediato
+    const nombreFinal = perfil?.full_name || "Admin/Instructor";
+    const rolFinal = perfil?.role || "trainer";
+
+    setUserName(nombreFinal);
+    setUserRole(rolFinal);
+
+    // Registro de ingreso con marca de tiempo para cálculo posterior
+    const etiquetaLog = `[${rolFinal.toUpperCase()}] ${nombreFinal}`;
+    await supabase.from('logs_actividad').insert([{ 
+      usuario_id: session.user.id,
+      nombre_usuario: etiquetaLog,
+      accion: "INGRESO",
+      detalles: "Sesión iniciada." // Aquí podrías guardar user-agent si quisieras
+    }]);
+
+    setLoading(false); 
+    fetchData();
   };
+  checkUser();
+}, [router]);
 
-  const toggleVerificacion = async (item: any, docId: string, docLabel: string) => {
-    // 1. Obtener estado actual
-    const currentVerification = item.doc_verification || {};
-    const currentState = currentVerification[docId]?.status || 'pending';
+const cerrarSesion = async () => {
+  if (!confirm("¿Cerrar sesión ahora?")) return;
 
-    // 2. Determinar nuevo estado (Ciclo: Pending -> Approved -> Rejected -> Approved)
-    let newState = 'approved';
-    if (currentState === 'approved') newState = 'rejected';
-    else if (currentState === 'rejected') newState = 'approved';
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      // 1. Buscar el último ingreso de este usuario para calcular tiempo
+      const { data: ultimoLog } = await supabase
+        .from('logs_actividad')
+        .select('created_at')
+        .eq('usuario_id', session.user.id)
+        .eq('accion', 'INGRESO')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-    // 3. Crear objeto de actualización
-    const timestamp = new Date().toLocaleString('es-CO');
-    const newVerificationData = {
-      ...currentVerification,
-      [docId]: { status: newState, by: userName, at: timestamp }
-    };
+      let detalleTiempo = "Duración no calculada";
+      
+      if (ultimoLog) {
+        const entrada = new Date(ultimoLog.created_at);
+        const salida = new Date();
+        const diffMs = salida.getTime() - entrada.getTime();
+        
+        const mins = Math.floor(diffMs / 60000);
+        const horas = Math.floor(mins / 60);
+        detalleTiempo = `Duración de sesión: ${horas}h ${mins % 60}m`;
+      }
 
-    // 4. Guardar en BD (Detectar si es de estudiantes o preinscripciones)
-    const tabla = item.origen; 
-    const { error } = await supabase.from(tabla).update({ doc_verification: newVerificationData }).eq('id', item.id);
+      // 2. Registrar salida con el cálculo
+      const etiqueta = `[${userRole.toUpperCase()}] ${userName}`;
+      await supabase.from('logs_actividad').insert([{ 
+        usuario_id: session.user.id,
+        nombre_usuario: etiqueta,
+        accion: "SALIDA",
+        detalles: `Cierre de sesión voluntario. ${detalleTiempo}`
+      }]);
+    }
 
-    if (!error) {
-      if(newState === 'approved') toast.success(`✅ ${docLabel} Aprobado`);
-      if(newState === 'rejected') toast.error(`❌ ${docLabel} Rechazado`);
-      await registrarLog(newState === 'approved' ? "Aprobó Documento" : "Rechazó Documento", `${docLabel} de ${item.nombre} (${newState.toUpperCase()})`);
-      fetchData();
+    await supabase.auth.signOut();
+    router.push("/admin/login");
+  } catch (err) {
+    console.error("Error al cerrar sesión:", err);
+    router.push("/admin/login");
+  }
+};
+
+  // --- FUNCIÓN CORREGIDA Y MEJORADA ---
+  const actualizarEstadoEstudiante = async (tabla: string, id: string, campo: string, valor: string, nombreEst: string) => {
+    // Validación de seguridad para precios
+    if (userRole !== 'admin_general' && (campo === 'precio_final' || campo === 'precio_pactado')) {
+      return toast.error("⛔ Solo Admin General edita precios.");
+    }
+
+    // 1. Intentar actualizar
+    const { error } = await supabase.from(tabla).update({ [campo]: valor }).eq('id', id);
+
+    // 2. Manejo de respuesta
+    if (error) {
+      console.error("Error actualizando:", error);
+      toast.error(`Error: ${error.message}`); // Te dirá qué pasa si falla
     } else {
-      toast.error("Error al guardar estado");
+      toast.success("Actualizado"); 
+      registrarLog("Editó Dato", `Cambió ${campo} en ${nombreEst}`); 
+      fetchData(); 
     }
   };
+
+
+  // 1. Esta función solo DECIDE qué hacer
+  const toggleVerificacion = async (item: any, docId: string, docLabel: string) => {
+  const currentVerification = item.doc_verification || {};
+  const currentState = currentVerification[docId]?.status || 'pending';
+
+  // Si el documento es ARL y NO está aprobado aún, abrimos el modal para pedir datos
+  if (docId === 'url_arl' && currentState !== 'approved') {
+    setModalARL({ isOpen: true, item });
+    return;
+  }
+
+  // Si es cualquier otro documento o si estamos rechazando la ARL, procede normal
+  let newState = currentState === 'approved' ? 'rejected' : 'approved';
+  ejecutarCambioEstado(item, docId, docLabel, newState);
+};
+
+// 2. Esta función es la que realmente GUARDA en Supabase (la llamamos desde el botón o desde el modal)
+const ejecutarCambioEstado = async (item: any, docId: string, docLabel: string, newState: string) => {
+  const currentVerification = item.doc_verification || {};
+  const timestamp = new Date().toLocaleString('es-CO');
+  
+  const newVerificationData = {
+    ...currentVerification,
+    [docId]: { status: newState, by: userName, at: timestamp }
+  };
+
+  const tabla = item.origen; 
+  const { error } = await supabase.from(tabla).update({ doc_verification: newVerificationData }).eq('id', item.id);
+
+  if (!error) {
+    if(newState === 'approved') toast.success(`✅ ${docLabel} Aprobado`);
+    if(newState === 'rejected') toast.error(`❌ ${docLabel} Rechazado`);
+    
+    await registrarLog(
+      newState === 'approved' ? "Aprobó Documento" : "Rechazó Documento", 
+      `${docLabel} de ${item.nombre} (${newState.toUpperCase()})`
+    );
+    fetchData();
+  } else {
+    toast.error("Error al guardar estado");
+  }
+};
 
   const obtenerRequeridos = (curso: string) => {
     const c = (curso || "").toLowerCase();
@@ -237,7 +537,7 @@ export default function AdminDashboard() {
     return item[docId] || (oldId ? item[oldId] : null);
   };
 
-  // --- ACCIONES BD GENERALES ---
+  // --- ACCIONES ADICIONALES ---
   const registrarEstudiante = async (e: React.FormEvent) => {
     e.preventDefault();
     const tId = toast.loading("Matriculando...");
@@ -266,15 +566,50 @@ export default function AdminDashboard() {
     if (!error) { toast.success("Precio actualizado"); fetchData(); }
   };
 
-  const actualizarEstadoEstudiante = async (tabla: string, id: string, campo: string, valor: string, nombre: string) => {
-    const { error } = await supabase.from(tabla).update({ [campo]: valor }).eq('id', id);
-    if (!error) { toast.success("Actualizado"); registrarLog("Editó Dato", `Cambió ${campo} en ${nombre}`); fetchData(); }
-  };
 
-  const guardarEnAgenda = async () => {
-    const { error } = await supabase.from('agenda').insert([{ curso: cursoSeleccionadoParaEditar, fecha: fechaSeleccionada, hora: horaNueva }]);
-    if (!error) { toast.success("Agenda actualizada"); fetchData(); }
-  };
+// Modifica la función guardarEnAgenda para que sea inteligente
+
+const [agendaData, setAgendaData] = useState({
+  fecha_inicio: new Date().toISOString().split('T')[0],
+  fecha_fin: "",
+  hora: "07:00",
+  // No necesitamos 'intensidad' aquí porque la sacaremos del catálogo al guardar
+});
+
+const guardarEnAgenda = async () => {
+  // 1. Validaciones de campos obligatorios
+  if (!cursoSeleccionadoParaEditar) return toast.error("Selecciona un curso");
+  if (!agendaData.fecha_inicio || !agendaData.fecha_fin) return toast.error("Faltan fechas");
+
+  // 2. Buscamos la intensidad horaria en el catálogo
+  const cursoEnCatalogo = catalogoCursos.find(
+    (c) => c.nombre_curso === cursoSeleccionadoParaEditar
+  );
+
+  // 3. Si el curso no tiene horas_duracion en la BD, le ponemos "40 horas" por defecto
+  const horasParaGuardar = cursoEnCatalogo?.horas_duracion || "40 horas";
+
+  // 4. Insertamos en la tabla 'agenda' usando los nombres reales de tus columnas SQL
+  const { error } = await supabase.from('agenda').insert([
+    { 
+      curso: cursoSeleccionadoParaEditar, 
+      fecha: agendaData.fecha_inicio,      // Columna 'fecha' (Inicio)
+      fecha_fin: agendaData.fecha_fin,    // Columna 'fecha_fin'
+      hora: agendaData.hora,              // Columna 'hora'
+      intensidad_horaria: horasParaGuardar // Columna 'intensidad_horaria'
+    }
+  ]);
+
+  if (error) {
+    console.error("Error Supabase:", error);
+    toast.error("Error al guardar: " + error.message);
+  } else {
+    toast.success("Curso agendado correctamente");
+    // Registro en Logs para auditoría
+    await registrarLog("AGENDA", `Agendó ${cursoSeleccionadoParaEditar} (${horasParaGuardar})`);
+    fetchData(); // Refrescar tablas
+  }
+};
 
   const generarReporte = (est: any) => {
     const requeridos = obtenerRequeridos(est.curso);
@@ -307,7 +642,6 @@ export default function AdminDashboard() {
     if (!error) { toast.success("Eliminado"); fetchData(); }
   };
 
-  // --- FILTROS ---
   const listaUnificada = [
     ...preinscripciones.map(p => ({ ...p, origen: 'preinscripciones', etiqueta: 'WEB' })),
     ...estudiantes.map(e => ({ ...e, origen: 'estudiantes', etiqueta: 'MANUAL' }))
@@ -315,67 +649,152 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#f1f5f9] font-bold text-slate-400">CARGANDO...</div>;
 
-  return (
-    <div className="flex h-screen bg-[#f1f5f9] text-[#334155] overflow-hidden">
-      <Toaster position="bottom-right" />
-      <ModalReporte isOpen={modalOpen} onClose={() => setModalOpen(false)} texto={textoReporte} />
-      
-      {/* SIDEBAR */}
-      <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-[#1e293b] text-white rounded-xl shadow-lg">
-        {isSidebarOpen ? <FaTimes size={20}/> : <FaBars size={20}/>}
-      </button>
+  
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#1e293b] text-slate-300 transform transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 lg:static lg:flex lg:flex-col shadow-xl flex-shrink-0`}>
-        <div className="p-6 text-xl font-bold border-b border-slate-700 text-white tracking-tight">AR Costa <span className="text-blue-400">Admin</span></div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+ return (
+  <div className="flex h-screen bg-[#f8fafc] text-[#334155] overflow-hidden">
+    <Toaster position="bottom-right" />
+    <ModalReporte isOpen={modalOpen} onClose={() => setModalOpen(false)} texto={textoReporte} />
+    
+    {/* BOTÓN HAMBURGUESA (Solo móvil) */}
+    <button 
+      onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+      className="lg:hidden fixed top-4 left-4 z-[60] p-3 bg-[#0F172A] text-white rounded-xl shadow-lg active:scale-95"
+    >
+      {isSidebarOpen ? <FaTimes size={20}/> : <FaBars size={20}/>}
+    </button>
+
+    {/* SIDEBAR RESPONSIVE */}
+    <>
+      {/* Overlay para móvil cuando el menú está abierto */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-[#0F172A] text-slate-300 
+        transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:translate-x-0 lg:static lg:flex lg:flex-col shadow-2xl flex-shrink-0 border-r border-slate-800
+      `}>
+        
+        {/* LOGO AYR ADMIN */}
+        <div className="p-2 border-b border-slate-800/50 flex flex-col items-center gap-3">
+          <img src="/logo-blanco.webp" alt="AR COSTA" className="w-16 h-16 object-contain" />
+          <div className="text-center">
+            <h1 className="text-2xl font-black tracking-tighter">
+              <span className="text-[#FFD700]">A</span>
+              <span className="text-[#00558A]">Y</span>
+              <span className="text-[#C41E3A]">R</span>
+              <span className="ml-1 text-white font-light text-sm tracking-widest uppercase">Admin</span>
+            </h1>
+            <div className="flex h-[2px] w-full mt-1">
+              <div className="flex-1 bg-[#FFD700]"></div>
+              <div className="flex-1 bg-[#00558A]"></div>
+              <div className="flex-1 bg-[#C41E3A]"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* NAVEGACIÓN */}
+        <nav className="flex-1 p-4  overflow-y-auto">
           {[
-            { id: 'solicitudes', icon: <FaClipboardList />, label: 'Solicitudes Web' },
-            { id: 'agenda', icon: <FaCalendarAlt />, label: 'Calendario / Agenda' },
-            { id: 'estudiantes', icon: <FaUserPlus />, label: 'Matricular Nuevo' },
-            { id: 'lista', icon: <FaUsers />, label: 'Base de Datos' },
-            { id: 'logs', icon: <FaHistory />, label: 'Auditoría / Logs' },
-            { id: 'listados', icon: <FaUserCheck />, label: 'Planillas de Clase' },
-            { id: 'precios', icon: <FaMoneyBillWave />, label: 'Precios Cursos' },
-            { id: 'config', icon: <FaUserCog />, label: 'Mi Perfil' },
-          ].map((item) => (
-            <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-              {item.icon} {item.label}
+            { id: 'solicitudes', icon: <FaClipboardList />, label: 'Solicitudes Web', roles: ['admin_general', 'director'] },
+            { id: 'agenda', icon: <FaCalendarAlt />, label: 'Calendario / Agenda', roles: ['admin_general', 'director', 'coordinator'] },
+            { id: 'estudiantes', icon: <FaUserPlus />, label: 'Matricular Nuevo', roles: ['admin_general', 'director', 'coordinator', 'trainer'] },
+            { id: 'lista', icon: <FaUsers />, label: 'Base de Datos', roles: ['admin_general', 'director', 'coordinator'] },
+            { id: 'listados', icon: <FaUserCheck />, label: 'Planillas de Clase', roles: ['admin_general', 'director', 'coordinator', 'trainer'] },
+            { id: 'equipo', icon: <FaUserCog />, label: 'Gestionar Equipo', roles: ['admin_general', 'director'] },
+            { id: 'logs', icon: <FaHistory />, label: 'Auditoría / Logs', roles: ['admin_general', 'director'] },
+            { id: 'precios', icon: <FaMoneyBillWave />, label: 'Precios Cursos', roles: ['admin_general', 'director'] },
+            { id: 'config', icon: <FaUser />, label: 'Mi Perfil', roles: ['admin_general', 'director', 'coordinator', 'trainer'] },
+          ]
+          .filter(item => item.roles.includes(userRole)) 
+          .map((item) => (
+            <button 
+              key={item.id} 
+              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-all ${
+                activeTab === item.id 
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'hover:bg-white/5 text-slate-400'
+              }`}
+            >
+              <span className={activeTab === item.id ? 'text-[#FFD700]' : ''}>{item.icon}</span> 
+              {item.label}
             </button>
           ))}
         </nav>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push("/admin/login"))} className="m-4 flex items-center gap-3 px-4 py-3 bg-red-900/30 hover:bg-red-800 text-red-200 rounded-lg transition"><FaSignOutAlt /> Salir</button>
+
+        <div className="p-4 border-t border-slate-800/50 text-center">
+          <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">© 2026 AR COSTA S.A.S</p>
+        </div>
       </aside>
+    </>
 
-      <main className="flex-1 h-screen overflow-y-auto relative bg-[#f1f5f9] pt-16 lg:pt-0">
-        <div className="p-4 md:p-10 max-w-[1800px] mx-auto">
-          
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-[#1e293b] capitalize">{activeTab.replace('precios', 'Configuración de Precios')}</h2>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1">Panel Administrativo</p>
-            </div>
-            <div className="flex items-center gap-3 bg-white p-2 pr-5 rounded-full border border-slate-200 shadow-sm">
-              <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white uppercase">{userEmail?.charAt(0)}</div>
-              <div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{userName}</span><span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">🟢 Conectado</span></div>
-            </div>
-          </header>
+    {/* CONTENIDO PRINCIPAL */}
+    <main className="flex-1 h-screen overflow-y-auto bg-[#f8fafc] relative">
+      <div className="p-4 md:p-8 lg:p-10 max-w-[1600px] mx-auto">
+        
+        {/* HEADER SUPERIOR */}
+        {/* HEADER SUPERIOR CORREGIDO */}
+<header className="flex flex-col sm:flex-row justify-between items-end sm:items-center mb-8 gap-4 pt-12 lg:pt-0">
+  <div>
+    <h2 className="text-2xl font-black text-[#0F172A] uppercase tracking-tight">
+      {/* Corrección del nombre del Tab */}
+      {activeTab === 'lista' ? 'Base de Datos' : activeTab.replace('solicitudes', 'Solicitudes')}
+    </h2>
+    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestión Institucional</p>
+  </div>
 
-          {/* --- VISTA: SOLICITUDES (ANTIGUO) --- */}
+  {/* WIDGET PERFIL - VERSIÓN EJECUTIVA LIMPIA */}
+  <div 
+    onClick={() => setActiveTab('config')}
+    className="flex items-center gap-3 bg-white pl-1.5 pr-4 py-1.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-500 transition-all cursor-pointer group"
+  >
+    {/* Avatar Cuadrado Redondeado (Estilo Corporativo) */}
+    <div className="w-10 h-10 bg-[#0F172A] rounded-xl flex items-center justify-center font-black text-[#FFD700] text-base shadow-sm group-hover:scale-105 transition-transform">
+      {userName && userName !== "Cargando..." ? userName.charAt(0).toUpperCase() : "?"}
+    </div>
+
+    <div className="flex flex-col justify-center">
+      <span className="text-[12px] font-black text-slate-800 uppercase tracking-tight leading-none">
+        {userName}
+      </span>
+      <div className="flex items-center gap-1.5 mt-1">
+        <div className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+        </div>
+        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+          {userRole.replace('_', ' ')}
+        </span>
+      </div>
+    </div>
+
+    {/* Flecha indicadora */}
+    <div className="ml-2 text-slate-300 group-hover:text-blue-500 transition-colors">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m6 9 6 6 6-6"/>
+      </svg>
+    </div>
+  </div>
+</header>
+          {/* SOLICITUDES */}
           {activeTab === "solicitudes" && (
             <div className="grid gap-6 animate-in fade-in">
               {solicitudes.map((sol) => (
                 <div key={sol.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-md">
-                    <div className="flex justify-between items-start mb-2">
+                   {/* ... (código existente de solicitudes) ... */}
+                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         {sol.tipo_cliente === "Empresa" ? <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-lg font-bold flex items-center gap-1"><FaBuilding/> EMPRESA: {sol.empresa}</span> : <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-lg font-bold flex items-center gap-1"><FaUsers/> PARTICULAR</span>}
                       </div>
                       <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FaUserTie className="text-slate-400" size={14}/> {sol.nombre}</h4>
-                      {sol.disponibilidad_cliente && (
-                        <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-800 italic">
-                          <b className="text-[10px] uppercase not-italic block mb-1 text-amber-600">Disponibilidad/Observaciones:</b> "{sol.disponibilidad_cliente}"
-                        </div>
-                      )}
                     </div>
                     <button onClick={async () => { if(confirm("¿Eliminar?")) { await supabase.from('solicitudes').delete().eq('id', sol.id); fetchData(); }}} className="text-slate-200 hover:text-red-500"><FaTrash size={14}/></button>
                   </div>
@@ -423,7 +842,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* --- VISTA: LISTA BASE DE DATOS (NUEVA CON LÓGICA DE SEMÁFORO) --- */}
+          {/* LISTA BASE DE DATOS (CORREGIDA) */}
           {activeTab === "lista" && (
             <div className="space-y-4 animate-in fade-in">
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
@@ -444,38 +863,100 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {listaUnificada.map((item: any) => {
-                      const reqs = obtenerRequeridos(item.curso);
-                      const verificacion = item.doc_verification || {};
+          {listaUnificada.map((item: any) => {
+            const reqs = obtenerRequeridos(item.curso);
+            const verificacion = item.doc_verification || {};
+            
+            // Lógica para el badge de empresa
+            const esEmpresa = item.tipo_cliente === "Empresa" || (item.empresa && item.empresa !== "Particular / Independiente" && item.empresa !== "Particular");
 
-                      return (
-                      <tr key={item.id + item.origen} className="hover:bg-slate-50 transition group">
+            return (
+            <tr key={item.id + item.origen} className="hover:bg-slate-50 transition group">
+              <td className="px-6 py-4">
+                  <div className="flex gap-1 mb-1">
+                    <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>{item.etiqueta}</span>
+                    
+                    {esEmpresa ? (
+                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
+                        <FaBuilding size={8}/> {item.empresa} {item.nit && item.nit !== 'N/A' ? `(NIT: ${item.nit})` : ''}
+                      </span>
+                    ) : (
+                      <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
+                        <FaUser size={8}/> INDEPENDIENTE
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="font-bold text-slate-700 text-base">{item.nombre}</div>
+                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10}/> {item.cedula}</div>
+                  
+                  {/* Ubicación: Dirección y Barrio */}
+                  <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                    <FaMapMarkerAlt className="text-red-400" size={10}/> 
+                    <span className="font-medium">{item.ciudad_residencia || item.direccion || 'Sin dirección'}</span>
+                    <span className="text-slate-300">|</span>
+                    <span className="font-bold text-slate-600">Barrio: {item.barrio || 'N/A'}</span>
+                  </div>
+
+                  <div className="text-[10px] text-blue-600 font-black uppercase mt-1 tracking-tight">{item.curso}</div>
+              </td>
+              <td className="px-6 py-4">
+                  <div className="flex flex-col gap-1.5">
+                      {reqs.map(r => (
+                          <DocButton 
+                              key={item.id + r.id}
+                              label={r.label}
+                              url={getDocUrl(item, r.id, r.oldId)}
+                              icon={r.icon}
+                              statusData={verificacion[r.id]}
+                              onToggle={() => toggleVerificacion(item, r.id, r.label)}
+                          />
+                      ))}
+                  </div>
+              </td>
                         <td className="px-6 py-4">
-                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black mb-1 ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>{item.etiqueta}</span>
-                            <div className="font-bold text-slate-700">{item.nombre}</div>
-                            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10}/> {item.cedula}</div>
-                            <div className="text-[10px] text-blue-500 font-bold uppercase mt-1">{item.curso}</div>
+                            <select value={item.estado_pago || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre || 'Estudiante')} className={`text-[10px] p-1.5 rounded border-none font-bold w-full mb-1 ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><option value="Pendiente">PENDIENTE</option><option value="Pagado">PAGADO</option></select>
+                            <div className="flex items-center gap-1 font-bold text-blue-600 text-xs">$ <input defaultValue={item.precio_final || item.precio_pactado || "0"} onBlur={(e) => actualizarEstadoEstudiante(item.origen, item.id, item.origen === 'preinscripciones' ? 'precio_pactado' : 'precio_final', e.target.value, item.nombre || 'Estudiante')} className="w-20 bg-transparent outline-none border-b border-transparent hover:border-blue-300"/></div>
                         </td>
-                        <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1.5">
-                                {reqs.map(r => (
-                                    <DocButton 
-                                        key={r.id}
-                                        label={r.label}
-                                        url={getDocUrl(item, r.id, r.oldId)}
-                                        icon={r.icon}
-                                        statusData={verificacion[r.id]}
-                                        onToggle={() => toggleVerificacion(item, r.id, r.label)}
-                                    />
-                                ))}
-                            </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            <select value={item.estado_pago || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre)} className={`text-[10px] p-1.5 rounded border-none font-bold w-full mb-1 ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><option value="Pendiente">PENDIENTE</option><option value="Pagado">PAGADO</option></select>
-                            <div className="flex items-center gap-1 font-bold text-blue-600 text-xs">$ <input defaultValue={item.precio_final || item.precio_pactado || "0"} onBlur={(e) => actualizarEstadoEstudiante(item.origen, item.id, item.origen === 'preinscripciones' ? 'precio_pactado' : 'precio_final', e.target.value, item.nombre)} className="w-20 bg-transparent outline-none border-b border-transparent hover:border-blue-300"/></div>
-                        </td>
-                        <td className="px-6 py-4"><select value={item.resultado_final || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre)} className={`text-[10px] p-1.5 rounded font-black w-full ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}><option>Pendiente</option><option>APTO</option><option>NO APTO</option></select></td>
-                        <td className="px-6 py-4">{item.resultado_final === "APTO" ? (item.agenda_id ? <span className="text-[10px] font-bold text-green-600 flex items-center gap-1"><FaCheckCircle/> ASIGNADO</span> : <select className="text-[10px] p-1 border rounded bg-blue-50 w-full" onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'agenda_id', e.target.value)}><option value="">Elegir fecha...</option>{agendaBD.filter(a => a.curso === item.curso).map(a => <option key={a.id} value={a.id}>{formatFechaElegante(a.fecha)}</option>)}</select>) : "N/A"}</td>
+                        <td className="px-6 py-4"><select value={item.resultado_final || "Pendiente"} onChange={(e)=>actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre || 'Estudiante')} className={`text-[10px] p-1.5 rounded font-black w-full ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}><option>Pendiente</option><option>APTO</option><option>NO APTO</option></select></td>
+                       <td className="px-6 py-4">
+  {/* Solo permitimos asignar si el resultado es APTO o si ya tiene una agenda asignada */}
+  {item.resultado_final === "APTO" || item.agenda_id ? (
+    <div className="flex flex-col gap-1">
+      <select 
+        className={`text-[10px] p-1 border rounded w-full font-bold outline-none ${
+          item.agenda_id ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}
+        value={item.agenda_id || ""}
+        onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'agenda_id', e.target.value, item.nombre)}
+      >
+        <option value="">-- Seleccionar Fecha --</option>
+        {agendaBD
+          .filter(a => {
+            // Limpiamos ambos textos para comparar sin errores de espacios o mayúsculas
+            const cursoAgenda = (a.curso || "").trim().toLowerCase();
+            const cursoEstudiante = (item.curso || "").trim().toLowerCase();
+            return cursoAgenda === cursoEstudiante;
+          })
+          .map(a => (
+            <option key={a.id} value={a.id}>
+              {formatFechaElegante(a.fecha)} ({a.hora}) - {a.intensidad_horaria}
+            </option>
+          ))
+        }
+      </select>
+      
+      {item.agenda_id && (
+        <span className="text-[8px] font-black text-green-600 flex items-center gap-1 justify-center uppercase">
+          <FaCheckCircle/> Cupo Reservado
+        </span>
+      )}
+    </div>
+  ) : (
+    <span className="text-[10px] text-slate-300 italic">Esperando Aptitud</span>
+  )}
+</td>
+
                         <td className="px-6 py-4 text-center space-y-2">
                             <button onClick={() => generarReporte(item)} className="w-full py-1.5 bg-slate-800 text-white rounded text-[9px] font-bold uppercase hover:bg-slate-900 transition flex items-center justify-center gap-1"><FaEnvelope className="text-yellow-400"/> Reporte</button>
                             <button onClick={() => borrarRegistro(item.origen, item.id)} className="text-red-300 hover:text-red-500 transition"><FaTrash size={12}/></button>
@@ -485,20 +966,89 @@ export default function AdminDashboard() {
                     })}
                   </tbody>
                 </table>
+                {/* MODAL PARA CAPTURAR DATOS DE ARL */}
+{modalARL.isOpen && (
+  <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
+      <div className="text-center mb-6">
+        <div className="bg-purple-100 text-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FaShieldVirus size={30}/>
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Verificar ARL</h3>
+        <p className="text-xs text-slate-500 mt-1">Ingresa el nombre de la aseguradora</p>
+      </div>
+
+      <div className="space-y-4">
+        <input 
+          placeholder="Nombre ARL (SURA, Positiva...)" 
+          className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-400 font-bold"
+          value={datosARL.nombre}
+          onChange={(e) => setDatosARL({...datosARL, nombre: e.target.value})}
+        />
+        <input 
+          placeholder="NIT (Opcional)" 
+          className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-400"
+          value={datosARL.nit}
+          onChange={(e) => setDatosARL({...datosARL, nit: e.target.value})}
+        />
+
+        <button 
+          onClick={async () => {
+            if(!datosARL.nombre) return toast.error("Escribe el nombre de la ARL");
+            const item = modalARL.item;
+            
+            // Guardar datos extras
+            const { error } = await supabase.from(item.origen)
+              .update({ arl_nombre: datosARL.nombre, arl_nit: datosARL.nit })
+              .eq('id', item.id);
+            
+            if(!error) {
+              await ejecutarCambioEstado(item, 'url_arl', 'ARL', 'approved');
+              setModalARL({isOpen: false, item: null});
+              setDatosARL({nombre: "", nit: ""});
+            }
+          }}
+          className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-lg"
+        >
+          Aprobar ARL
+        </button>
+        <button onClick={() => setModalARL({isOpen: false, item: null})} className="w-full text-xs font-bold text-slate-400">Cancelar</button>
+      </div>
+    </div>
+  </div>
+)}
               </div>
             </div>
           )}
 
-          {/* --- VISTA: LOGS (NUEVA) --- */}
-          {activeTab === 'logs' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 animate-in fade-in">
-              <h3 className="font-bold text-slate-700 flex items-center gap-2"><FaHistory/> Historial de Actividad</h3>
-              {logsRecientes.map(log => (<div key={log.id} className="border-b pb-2 last:border-0"><p className="text-sm font-bold text-slate-800">{log.action} <span className="font-normal text-slate-500">por {log.admin_name}</span></p><p className="text-xs text-slate-400">{log.details} • {new Date(log.created_at).toLocaleString()}</p></div>))}
-            </div>
-          )}
+              {/* LOGS */}
+              {activeTab === 'logs' && (userRole === 'admin_general' || userRole === 'director') && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4 animate-in fade-in">
+                  <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <FaHistory className="text-blue-500"/> Historial de Actividad
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {logsRecientes.map(log => (
+                      <div key={log.id} className="border-b pb-3 last:border-0 border-slate-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="text-sm font-bold text-slate-800">
+                            {log.accion} {/* Cambiado de .action a .accion */}
+                            <span className="font-normal text-slate-500 ml-2">por {log.nombre_usuario}</span> {/* Cambiado de .admin_name a .nombre_usuario */}
+                          </p>
+                          <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 italic">"{log.detalles}"</p> {/* Cambiado de .details a .detalles */}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* --- VISTA: PRECIOS MAESTROS (ANTIGUO) --- */}
-          {activeTab === "precios" && (
+          {/* PRECIOS */}
+          {activeTab === "precios" && (userRole === 'admin_general' || userRole === 'director') && (
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in">
               <div className="p-6 border-b bg-slate-50"><h3 className="font-bold text-slate-700 flex items-center gap-2"><FaMoneyBillWave className="text-blue-600"/> Lista de Precios Base</h3></div>
               <table className="w-full text-left text-sm">
@@ -518,51 +1068,253 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* --- VISTA: AGENDA (ANTIGUO) --- */}
-          {activeTab === "agenda" && (
-            <div className="grid md:grid-cols-3 gap-6 animate-in fade-in">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 h-fit">
-                <h3 className="font-bold mb-4 flex items-center gap-2"><FaPlus className="text-blue-500"/> Nuevo Bloque</h3>
-                <div className="space-y-4">
-                  <select className="w-full p-2 bg-slate-50 border rounded-lg text-sm" value={cursoSeleccionadoParaEditar} onChange={(e) => setCursoSeleccionadoParaEditar(e.target.value)}>{listaCursos.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                  <input type="date" className="w-full p-2 border rounded-lg" value={fechaSeleccionada} onChange={(e) => setFechaSeleccionada(e.target.value)} />
-                  <input type="time" className="w-full p-2 border rounded-lg" value={horaNueva} onChange={(e) => setHoraNueva(e.target.value)} />
-                  <button onClick={guardarEnAgenda} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg">Crear en Agenda</button>
-                </div>
+{/* AGENDA */}
+{activeTab === "agenda" && (
+  <div className="grid md:grid-cols-3 gap-6 animate-in fade-in">
+    {/* Formulario de Creación */}
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 h-fit shadow-sm">
+      <h3 className="font-bold mb-6 flex items-center gap-2 text-slate-700">
+        <FaPlus className="text-blue-500"/> Programar Bloque
+      </h3>
+      <div className="space-y-4">
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Curso del Catálogo</label>
+          <select 
+            className="w-full p-3 bg-slate-50 border rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+            value={cursoSeleccionadoParaEditar} 
+            onChange={(e) => setCursoSeleccionadoParaEditar(e.target.value)}
+          >
+            <option value="">Seleccione un curso...</option>
+            {catalogoCursos.map(c => (
+              <option key={c.id} value={c.nombre_curso}>{c.nombre_curso}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Fecha Inicio</label>
+            <input 
+              type="date" 
+              className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              value={agendaData.fecha_inicio} 
+              onChange={(e) => setAgendaData({...agendaData, fecha_inicio: e.target.value})} 
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Fecha Fin</label>
+            <input 
+              type="date" 
+              className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              value={agendaData.fecha_fin} 
+              onChange={(e) => setAgendaData({...agendaData, fecha_fin: e.target.value})} 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Hora de Ingreso</label>
+          <input 
+            type="time" 
+            className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            value={agendaData.hora} 
+            onChange={(e) => setAgendaData({...agendaData, hora: e.target.value})} 
+          />
+        </div>
+
+        <button 
+          onClick={guardarEnAgenda} 
+          className="w-full py-4 bg-[#1E3A8A] text-white rounded-2xl font-bold shadow-lg hover:bg-blue-900 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+        >
+          <FaCalendarAlt/> Crear en Agenda
+        </button>
+      </div>
+    </div>
+
+    {/* Visualización de la Agenda */}
+    <div className="md:col-span-2 space-y-4">
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 flex justify-between items-center">
+        <h3 className="font-bold text-slate-500 text-xs uppercase tracking-widest">Cursos Programados</h3>
+        <span className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold">Total: {agendaBD.length} bloques</span>
+      </div>
+
+      <div className="grid gap-3 overflow-y-auto max-h-[600px] pr-2">
+        {agendaBD.map((item) => (
+          <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-300 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="bg-slate-50 p-3 rounded-xl text-center min-w-[80px] border border-slate-100">
+                <p className="text-[10px] font-black text-blue-600 uppercase">{item.hora}</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-1">{item.intensidad_horaria}</p>
               </div>
-              <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-200">
-                <h3 className="font-bold mb-4 uppercase text-slate-400 text-xs">Cupos para: {formatFechaElegante(fechaSeleccionada)}</h3>
-                {agendaBD.filter(a => a.fecha === fechaSeleccionada).map((item) => (
-                  <div key={item.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border-l-4 border-blue-500 mb-2">
-                    <div><p className="text-xs font-bold text-blue-600">{item.hora}</p><p className="text-sm font-bold">{item.curso}</p></div>
-                    <button onClick={async () => { if(confirm("¿Borrar?")) { await supabase.from('agenda').delete().eq('id', item.id); fetchData(); }}} className="text-red-200 hover:text-red-500"><FaTrash size={14}/></button>
-                  </div>
-                ))}
+              <div>
+                <p className="font-bold text-slate-800 text-sm">{item.curso}</p>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {item.fecha} <span className="text-blue-300 mx-1">➔</span> {item.fecha_fin}
+                </p>
               </div>
             </div>
-          )}
+            <button 
+              onClick={() => borrarRegistro('agenda', item.id)} 
+              className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+            >
+              <FaTrash size={14}/>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
-          {/* --- VISTA: LISTADOS (ANTIGUO) --- */}
-          {activeTab === "listados" && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="font-bold mb-2">Ver Planilla del Día</h3><input type="date" className="p-2 border rounded-lg" value={fechaSeleccionada} onChange={(e) => setFechaSeleccionada(e.target.value)} /></div>
-              {agendaBD.filter(a => a.fecha === fechaSeleccionada).map(bloque => (
-                <div key={bloque.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm mb-4">
-                  <div className="bg-[#1e293b] p-4 text-white flex justify-between items-center"><div><span className="font-bold block uppercase text-xs text-blue-400">{formatFechaElegante(bloque.fecha)}</span><span className="font-bold">{bloque.curso}</span></div><span className="text-xs bg-blue-600 px-2 py-1 rounded font-bold">{bloque.hora}</span></div>
-                  <div className="p-4">{estudiantes.filter(e => e.agenda_id === bloque.id).length > 0 ? (<div className="space-y-2">{estudiantes.filter(e => e.agenda_id === bloque.id).map((e, idx) => (<div key={e.id} className="flex justify-between items-center border-b pb-2 text-sm"><span>{idx + 1}. <b>{e.nombre}</b></span><span className="text-slate-400 font-mono text-[10px]">{e.cedula}</span></div>))}</div>) : <p className="text-xs text-slate-400 italic">No hay estudiantes asignados.</p>}</div>
+
+          {/* LISTADOS DE ASISTENCIA */}  
+{activeTab === "listados" && (
+  <div className="space-y-6 animate-in fade-in">
+    {/* MODAL RÁPIDO DE DETALLES DEL ESTUDIANTE */}
+    {estudianteSeleccionado && (
+      <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-blue-100 p-3 rounded-2xl text-blue-600">
+              <FaUser size={24}/>
+            </div>
+            <button onClick={() => setEstudianteSeleccionado(null)} className="text-slate-400 hover:text-red-500">
+              <FaTimes size={20}/>
+            </button>
+          </div>
+          <h4 className="font-black text-slate-800 text-xl leading-tight mb-1 uppercase">{estudianteSeleccionado.nombre}</h4>
+          <p className="text-blue-600 font-bold text-xs mb-4">{estudianteSeleccionado.curso}</p>
+          
+          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400 font-bold uppercase">Cédula:</span>
+              <span className="text-slate-700 font-mono font-bold">{estudianteSeleccionado.cedula}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400 font-bold uppercase">Teléfono:</span>
+              <span className="text-slate-700 font-bold">{estudianteSeleccionado.telefono || 'No registra'}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400 font-bold uppercase">ARL:</span>
+              <span className="text-purple-600 font-bold">{estudianteSeleccionado.arl_nombre || 'Pendiente'}</span>
+            </div>
+            <div className="flex justify-between text-xs border-t pt-2 mt-2">
+              <span className="text-slate-400 font-bold uppercase">Barrio:</span>
+              <span className="text-slate-700 font-bold">{estudianteSeleccionado.barrio || 'No registra'}</span>
+            </div>
+          </div>
+          
+          <a 
+            href={`https://wa.me/57${estudianteSeleccionado.telefono}`} 
+            target="_blank"
+            className="mt-4 w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-center block shadow-lg hover:bg-emerald-600 transition-all uppercase text-xs tracking-widest"
+          >
+            Llamar / WhatsApp
+          </a>
+        </div>
+      </div>
+    )}
+
+    {/* HEADER DE FECHA */}
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h3 className="font-bold text-slate-800">Planillas de Asistencia</h3>
+        <p className="text-xs text-slate-400">Instructor: Selecciona la fecha de hoy para ver tu grupo.</p>
+      </div>
+      <input 
+        type="date" 
+        className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50 font-black text-sm outline-none focus:border-blue-500 transition-all" 
+        value={fechaSeleccionada} 
+        onChange={(e) => setFechaSeleccionada(e.target.value)} 
+      />
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-6">
+      {agendaBD.filter(a => a.fecha === fechaSeleccionada).map(bloque => {
+        const inscritos = [
+          ...estudiantes.filter(e => e.agenda_id === bloque.id),
+          ...preinscripciones.filter(p => p.agenda_id === bloque.id)
+        ];
+
+        return (
+          <div key={bloque.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+            <div className="bg-[#1e293b] p-5 text-white flex justify-between items-center">
+              <div>
+                <span className="font-black block uppercase text-[10px] text-blue-400 tracking-tighter">
+                  {bloque.intensidad_horaria} | {bloque.hora}
+                </span>
+                <span className="font-bold text-base leading-none">{bloque.curso}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] bg-blue-600 px-3 py-1 rounded-full font-black uppercase">
+                  {inscritos.length} Alumnos
+                </span>
+              </div>
+            </div>
+            
+            <div className="p-5 flex-1">
+              {inscritos.length > 0 ? (
+                <div className="space-y-2">
+              {inscritos.map((e, idx) => (
+                <div 
+                  key={e.id} 
+                  // Asegúrate de que el estado se llame igual que arriba
+                  onClick={() => setEstudianteSeleccionado(e)} 
+                  className="flex justify-between items-center p-3 hover:bg-blue-50 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-blue-100 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-slate-300 group-hover:text-blue-400">{idx + 1}</span>
+                    <p className="text-xs font-bold text-slate-700 uppercase">{e.nombre}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-mono text-[9px] bg-slate-100 px-2 py-0.5 rounded-lg">
+                      {e.cedula}
+                    </span>
+                    <FaExternalLinkAlt className="text-slate-200 group-hover:text-blue-400" size={10}/>
+                  </div>
                 </div>
               ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                    <p className="text-xs text-slate-300 italic">No hay estudiantes cargados para este bloque.</p>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* --- VISTA: ESTUDIANTES MANUALES (ANTIGUO) --- */}
+            <div className="bg-slate-50 p-4 border-t flex justify-center">
+               <button 
+                onClick={() => descargarPDFAsistencia(bloque, inscritos)}
+                className="w-full py-3 bg-white border-2 border-blue-100 text-blue-600 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
+               >
+                 <FaFilePdf size={14}/> Generar Planilla Oficial PDF
+               </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
+          {/* ESTUDIANTES */}
           {activeTab === "estudiantes" && (
             <div className="max-w-4xl bg-white rounded-3xl p-8 border border-slate-200 shadow-sm mx-auto animate-in fade-in">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaUserPlus className="text-blue-600"/> Matriculación Manual</h3>
               <form onSubmit={registrarEstudiante} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input required placeholder="Nombre Completo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.nombre} onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
                 <input required placeholder="Documento (Cédula)" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.cedula} onChange={(e)=>setFormData({...formData, cedula: e.target.value})} />
-                <select required className="md:col-span-2 p-3 bg-slate-50 border rounded-xl outline-none" value={formData.curso} onChange={(e)=>setFormData({...formData, curso: e.target.value})}><option value="">Seleccione el curso...</option>{listaCursos.map(c => <option key={c} value={c}>{c}</option>)}</select>
+
+                <select 
+                  className="w-full p-2 bg-slate-50 border rounded-lg text-sm" 
+                  value={cursoSeleccionadoParaEditar} 
+                  onChange={(e) => setCursoSeleccionadoParaEditar(e.target.value)}
+                >
+                  <option value="">Seleccione curso del catálogo...</option>
+                  {catalogoCursos.map(c => (
+                    <option key={c.id} value={c.nombre_curso}>{c.nombre_curso}</option>
+                  ))}
+                </select>
                 <input placeholder="WhatsApp" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.telefono} onChange={(e)=>setFormData({...formData, telefono: e.target.value})} />
                 <input type="email" placeholder="Correo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} />
                 <div className="md:col-span-2">
@@ -576,35 +1328,247 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* --- VISTA: CONFIGURACIÓN (ANTIGUO) --- */}
-          {activeTab === "config" && (
-            <div className="max-w-2xl bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mx-auto animate-in fade-in">
-              <div className="bg-gradient-to-r from-[#1e293b] to-[#334155] p-8 text-white flex justify-between items-center">
-                <div><h3 className="text-2xl font-bold">Mi Perfil</h3><p className="text-blue-400 text-xs uppercase tracking-widest font-bold mt-1">Sesión Administrativa</p></div>
-                <FaUserCog size={40} className="opacity-20"/>
-              </div>
-              <div className="p-8 space-y-4">
-                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FaEnvelope size={20}/></div>
-                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Usuario</p><p className="text-lg font-bold text-slate-700">{userEmail}</p></div>
-                </div>
-                <div className="flex items-center gap-4 p-5 bg-emerald-50 rounded-2xl border border-emerald-100">
-                  <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><FaShieldAlt size={20}/></div>
-                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Rango de Acceso</p><p className="text-lg font-bold text-emerald-700">Administrador General</p></div>
-                </div>
-                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="p-3 bg-slate-200 text-slate-600 rounded-xl"><FaSync size={20}/></div>
-                  <div><p className="text-[10px] font-bold uppercase text-slate-400">Hora de ingreso al panel</p><p className="text-sm font-mono text-slate-600 font-bold">{horaIngreso}</p></div>
-                </div>
-                <div className="pt-6 border-t border-slate-100 mt-4">
-                  <button onClick={() => { if(confirm("¿Seguro que deseas cerrar sesión?")) { supabase.auth.signOut().then(() => router.push("/admin/login")); }}} className="w-full flex items-center justify-center gap-3 bg-red-50 text-red-600 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100">
-                    <FaSignOutAlt size={18} /> Cerrar Sesión
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* MI PERFIL - DISEÑO MEJORADO */}
+{activeTab === "config" && (
+  <div className="max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden">
+      
+      {/* Header con Gradiente y Avatar */}
+      <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] p-10 text-white relative">
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <FaUserCog size={80} />
         </div>
+        
+        <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
+          <div className="w-24 h-24 bg-[#FFD700] rounded-3xl flex items-center justify-center text-[#0F172A] text-4xl font-black shadow-2xl rotate-3">
+            {userName?.charAt(0)}
+          </div>
+          <div className="text-center md:text-left">
+            <h3 className="text-3xl font-black tracking-tighter uppercase">{userName}</h3>
+            <div className="inline-block bg-blue-500/20 border border-blue-400/30 px-3 py-1 rounded-full mt-2">
+              <p className="text-[10px] text-blue-300 uppercase font-black tracking-widest flex items-center gap-2">
+                <FaShieldAlt size={10}/> Sistema de Gestión de Riesgos
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-8 space-y-2 bg-white">
+        
+        {/* Nombre Completo */}
+        <div className="group flex items-center gap-5 p-5 bg-slate-50 rounded-[24px] border border-transparent hover:border-slate-200 transition-all">
+          <div className="p-4 bg-white text-slate-400 rounded-2xl shadow-sm group-hover:text-blue-600 transition-colors">
+            <FaUser size={15}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nombre del Colaborador</p>
+            <p className="text-lg font-bold text-slate-700">{userName}</p>
+          </div>
+        </div>
+
+        {/* Correo */}
+        <div className="group flex items-center gap-5 p-5 bg-slate-50 rounded-[24px] border border-transparent hover:border-slate-200 transition-all">
+          <div className="p-4 bg-white text-slate-400 rounded-2xl shadow-sm group-hover:text-blue-600 transition-colors">
+            <FaEnvelope size={20}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Correo Institucional</p>
+            <p className="text-lg font-bold text-slate-700">{userEmail}</p>
+          </div>
+        </div>
+
+        {/* Rango con Estilo de Badge */}
+        <div className={`group flex items-center gap-5 p-5 rounded-[24px] border transition-all ${
+          userRole === 'admin_general' ? 'bg-red-50/50 border-red-100' : 
+          userRole === 'director' ? 'bg-purple-50/50 border-purple-100' : 'bg-blue-50/50 border-blue-100'
+        }`}>
+          <div className={`p-4 bg-white rounded-2xl shadow-sm ${
+            userRole === 'admin_general' ? 'text-red-500' : 
+            userRole === 'director' ? 'text-purple-500' : 'text-blue-500'
+          }`}>
+            <FaShieldAlt size={20}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Rango de Acceso</p>
+            <p className={`text-lg font-black uppercase tracking-tight ${
+              userRole === 'admin_general' ? 'text-red-700' : 
+              userRole === 'director' ? 'text-purple-700' : 'text-blue-700'
+            }`}>
+              {userRole === 'admin_general' ? 'Administrador General' : 
+               userRole === 'director' ? 'Director Estratégico' :
+               userRole === 'coordinator' ? 'Coordinador Académico' : 'Entrenador Especializado'}
+            </p>
+          </div>
+        </div>
+
+        {/* Sesión Info */}
+        <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-[24px] border border-transparent hover:border-slate-200 transition-all">
+          <div className="p-4 bg-white text-slate-400 rounded-2xl shadow-sm">
+            <FaClock size={20}/>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ingreso al Panel</p>
+            <p className="text-sm font-mono text-slate-600 font-bold">{horaIngreso}</p>
+          </div>
+        </div>
+
+        {/* Botón Salida */}
+        <div className="pt-6 mt-4">
+          <button 
+            onClick={cerrarSesion} 
+            className="w-full flex items-center justify-center gap-3 bg-red-50 text-red-600 py-5 rounded-[24px] font-black uppercase tracking-[0.2em] text-xs hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 active:scale-95"
+          >
+            <FaSignOutAlt size={18} /> Finalizar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+</div>
+          {/* GESTIÓN DE PERSONAL ACTUALIZADO */}
+{activeTab === "equipo" && (userRole === 'admin_general' || userRole === 'director') && (
+  <div className="space-y-6 animate-in fade-in">
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <FaUserCog className="text-blue-600"/> Gestión de Personal
+        </h3>
+        <p className="text-xs text-slate-400 mt-1">Administra los accesos y rangos de tu equipo.</p>
+      </div>
+      
+      {/* BOTÓN QUE ABRE EL FORMULARIO BONITO */}
+      <button 
+        onClick={() => {
+          setFormEquipo({ email: "", pass: "", nombre: "" });
+          setIsModalEquipoOpen(true);
+        }}
+        className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-blue-700 shadow-lg transition-all"
+      >
+        <FaPlus/> Registrar Colaborador
+      </button>
+    </div>
+
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b">
+          <tr>
+            <th className="px-6 py-4">Colaborador</th>
+            <th className="px-6 py-4">Email</th>
+            <th className="px-6 py-4">Rango</th>
+            <th className="px-6 py-4">Cambiar Rango</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {listaPerfiles.length > 0 ? listaPerfiles.map((p) => (
+            <tr key={p.id} className="hover:bg-slate-50 transition">
+              <td className="px-6 py-4 font-bold text-slate-700 uppercase">{p.full_name}</td>
+              <td className="px-6 py-4 text-slate-500 font-mono text-xs">{p.email}</td>
+              <td className="px-6 py-4">
+                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                  p.role === 'admin_general' ? 'bg-red-100 text-red-600' :
+                  p.role === 'director' ? 'bg-purple-100 text-purple-600' :
+                  p.role === 'coordinator' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {p.role}
+                </span>
+              </td>
+              <td className="px-6 py-4">
+                <select 
+                  className="p-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none border-transparent hover:border-blue-200"
+                  value={p.role}
+                  onChange={async (e) => {
+                    const nuevoRol = e.target.value;
+                    const { error } = await supabase.from('profiles').update({ role: nuevoRol }).eq('id', p.id);
+                    if (!error) {
+                      toast.success(`Rol actualizado`);
+                      fetchData(); 
+                    }
+                  }}
+                >
+                  <option value="trainer">trainer</option>
+                  <option value="coordinator">coordinator</option>
+                  <option value="director">director</option>
+                  <option value="admin_general">admin_general</option>
+                </select>
+              </td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={4} className="p-10 text-center text-slate-400 italic text-xs">No hay perfiles registrados aún.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+
+    {/* --- EL FORMULARIO MODAL BONITO (DENTRO DEL MISMO BLOQUE) --- */}
+    {isModalEquipoOpen && (
+      <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
+          <div className="text-center mb-8">
+            <div className="bg-blue-100 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3">
+              <FaUserPlus size={30}/>
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Nuevo Miembro</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Acceso AR COSTA</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nombre Completo</label>
+              <input 
+                type="text" 
+                placeholder="Ej: Juan Pérez" 
+                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
+                value={formEquipo.nombre}
+                onChange={(e) => setFormEquipo({...formEquipo, nombre: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Correo Electrónico</label>
+              <input 
+                type="email" 
+                placeholder="correo@arcosta.com" 
+                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
+                value={formEquipo.email}
+                onChange={(e) => setFormEquipo({...formEquipo, email: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Contraseña Temporal</label>
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
+                value={formEquipo.pass}
+                onChange={(e) => setFormEquipo({...formEquipo, pass: e.target.value})}
+              />
+            </div>
+
+            <div className="pt-4 space-y-3">
+              <button 
+                onClick={() => handleCrearUsuarioManual(formEquipo.email, formEquipo.pass, formEquipo.nombre)}
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+              >
+                CREAR CUENTA
+              </button>
+              <button 
+                onClick={() => setIsModalEquipoOpen(false)}
+                className="w-full py-2 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-red-500 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
       </main>
     </div>
   );
