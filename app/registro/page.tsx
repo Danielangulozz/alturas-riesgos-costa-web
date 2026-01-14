@@ -43,26 +43,24 @@ function ContenidoSubida() {
   };
 
   const buscarPorCedula = async (e?: React.FormEvent) => {
-    if(e) e.preventDefault();
-    if (!cedulaBusqueda) return toast.error("Escribe una cédula");
-    
-    setLoading(true);
-    const { data, error } = await supabase.from("preinscripciones")
-      .select("*")
-      .eq("cedula", cedulaBusqueda)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+  if(e) e.preventDefault();
+  if (!cedulaBusqueda) return toast.error("Escribe tu cédula");
+  
+  setLoading(true);
+  const { data, error } = await supabase.from("preinscripciones")
+    .select("*")
+    .eq("cedula", cedulaBusqueda)
+    .single();
 
-    if (error || !data) {
-      toast.error("No encontramos una pre-inscripción activa.");
-      setDatosUsuario(null);
-    } else {
-      setDatosUsuario(data);
-      toast.success(`Hola, ${data.nombre.split(" ")[0]}!`);
-    }
-    setLoading(false);
-  };
+  if (error || !data) {
+    toast.error("No encontramos tu registro. ¿Ya te inscribiste?");
+    setDatosUsuario(null);
+  } else {
+    setDatosUsuario(data);
+    toast.success(`¡Hola, ${data.nombre}!`);
+  }
+  setLoading(false);
+};
 
   const obtenerDocumentosRequeridos = (nombreCurso: string) => {
     let requeridos = ["cc", "arl", "emo", "eps"];

@@ -2,6 +2,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { registrarCertificacion, generarPDFCertificado } from "@/lib/certificadoLogic";
 import React, { useState, useEffect } from "react";
 import { 
   FaUsers, FaUserPlus, FaSignOutAlt, FaUserCog, FaEnvelope, FaShieldAlt, 
@@ -16,20 +17,48 @@ import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
 // --- COMPONENTE: MODAL REPORTE ---
-function ModalReporte({ isOpen, onClose, texto }: { isOpen: boolean, onClose: () => void, texto: string }) {
+
+// --- COMPONENTE: MODAL REPORTE (ACTUALIZADO) ---
+function ModalReporte({ isOpen, onClose, texto, telefono }: { isOpen: boolean, onClose: () => void, texto: string, telefono: string }) {
   if (!isOpen) return null;
+  
+  const enviarWhatsApp = () => {
+    const num = telefono.replace(/\s/g, '').replace('+', '');
+    const url = `https://wa.me/57${num}?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
-        <div className="bg-[#0F172A] p-4 text-white flex justify-between items-center">
-          <h3 className="font-bold flex items-center gap-2"><FaEnvelope className="text-yellow-400"/> Notificación</h3>
-          <button onClick={onClose}><FaTimes/></button>
+    <div className="fixed inset-0 bg-black/80 z-[150] flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in zoom-in duration-200">
+        <div className="bg-[#0F172A] p-5 text-white flex justify-between items-center">
+          <h3 className="font-bold flex items-center gap-2"><FaEnvelope className="text-yellow-400"/> Notificación al Estudiante</h3>
+          <button onClick={onClose} className="hover:rotate-90 transition-transform"><FaTimes size={20}/></button>
         </div>
         <div className="p-6">
-          <textarea className="w-full h-48 p-4 bg-slate-50 border rounded-xl text-xs font-mono text-slate-700 resize-none outline-none" value={texto} readOnly />
-          <button onClick={() => { navigator.clipboard.writeText(texto); toast.success("Copiado"); }} className="mt-4 w-full py-3 bg-[#1E3A8A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-900 transition shadow-lg">
-            <FaCopy/> Copiar Texto
-          </button>
+          <div className="mb-4 bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
+            <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Vista previa del mensaje:</p>
+            <textarea 
+              className="w-full h-56 p-4 bg-white border rounded-xl text-xs font-mono text-slate-700 resize-none outline-none focus:ring-2 focus:ring-blue-500" 
+              value={texto} 
+              readOnly 
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => { navigator.clipboard.writeText(texto); toast.success("Copiado al portapapeles"); }} 
+              className="py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-200 transition"
+            >
+              <FaCopy/> Copiar
+            </button>
+            <button 
+              onClick={enviarWhatsApp} 
+              className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition shadow-lg shadow-emerald-200"
+            >
+              <FaPhoneAlt/> Enviar WhatsApp
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -119,6 +148,90 @@ export default function AdminDashboard() {
   }
 };
 
+const generarReporte = (est: any) => {
+    // 1. Buscar Duración Real en el Catálogo
+    const infoCursoCat = catalogoCursos.find((c: any) => c.nombre_curso === est.curso);
+    const duracionReal = infoCursoCat?.horas_duracion || "40 horas";
+
+    // 2. Análisis de Documentación (Lógica anterior recuperada)
+    const requeridos = obtenerRequeridos(est.curso);
+    const verif = est.doc_verification || {};
+    const faltantes: string[] = [];
+    const rechazados: string[] = [];
+
+    requeridos.forEach((req: any) => {
+      const url = getDocUrl(est, req.id, req.oldId);
+      const status = verif[req.id]?.status;
+
+      if (!url) {
+        faltantes.push(req.label);
+      } else if (status === 'rejected') {
+        rechazados.push(req.label);
+      }
+    });
+
+    // 3. Análisis de Agenda (Cita programada)
+    let infoAgenda = "";
+    if (est.agenda_id) {
+      const bloque = agendaBD.find((a: any) => a.id === est.agenda_id);
+      if (bloque) {
+        infoAgenda = `🗓️ *CITACIÓN PROGRAMADA:*\n📍 Curso: ${bloque.curso}\n📅 Fecha: ${formatFechaElegante(bloque.fecha)}\n⏰ Hora: ${bloque.hora}\n⏳ Duración: ${duracionReal}\n\n`;
+      }
+    }
+
+    // 4. Lógica de Empresa
+    const esEmpresa = est.tipo_cliente === "Empresa" || (est.empresa && est.empresa !== "Particular" && est.empresa !== "PARTICULAR" && est.empresa !== "Particular / Independiente");
+
+    // 5. Construcción del Cuerpo del Mensaje
+    let msg = `Hola *${est.nombre}*, te saludamos de *Alturas y Riesgos de la Costa*.\n\n`;
+    
+    if (esEmpresa) {
+      msg = `Estimado(a) *${est.nombre}*, reciba un saludo cordial de *Alturas y Riesgos de la Costa*. Notificación de proceso para el personal de *${est.empresa}*.\n\n`;
+    }
+
+    // SECCIÓN DOCS Y APTITUD (Unificada)
+    if (faltantes.length === 0 && rechazados.length === 0 && est.resultado_final === 'APTO') {
+      msg += `✅ *ESTADO:* Documentación y Aptitud Médica *APROBADA*.\n`;
+    } else {
+      msg += `⚠️ *PENDIENTES DE DOCUMENTACIÓN / APTITUD:*\n`;
+      if (rechazados.length > 0) rechazados.forEach(f => msg += `❌ ${f} (Rechazado/Ilegible)\n`);
+      if (faltantes.length > 0) faltantes.forEach(f => msg += `⚠️ ${f} (Faltante)\n`);
+      
+      if (est.resultado_final === 'Pendiente') msg += `🩺 Aptitud Médica: (En revisión)\n`;
+      if (est.resultado_final === 'NO APTO') msg += `🚫 Aptitud Médica: (NO APTO)\n`;
+      
+      msg += `\n_Por favor, póngase al día con estos requisitos para poder certificarlo._\n`;
+    }
+
+    msg += `\n`;
+
+    // SECCIÓN PAGO
+    const valor = est.precio_final || est.precio_pactado || "0";
+    if (est.estado_pago === 'Pagado') {
+      msg += `💰 *PAGO:* Registrado con éxito ($${valor}).\n`;
+    } else {
+      msg += `💳 *PAGO:* PENDIENTE\n💵 Valor pendiente: *$${valor}*\n`;
+      if (esEmpresa) msg += `_Nota: Soporte de pago debe incluir el NIT de la empresa._\n`;
+    }
+
+    msg += `\n`;
+
+    // SECCIÓN CITA
+    if (est.resultado_final === 'APTO') {
+      if (infoAgenda) {
+        msg += infoAgenda;
+      } else {
+        msg += `⏳ *PROGRAMACIÓN:* Estamos pendientes de asignarte fecha de entrenamiento.\n`;
+      }
+    }
+
+    msg += `\nCualquier duda, escríbenos a este número.\nAtte: *${userName}*`;
+
+    // Seteo de estados para abrir el modal
+    setEstudianteSeleccionado(est);
+    setTextoReporte(msg);
+    setModalOpen(true);
+  };
 
 
   const listaCursos = [
@@ -131,10 +244,21 @@ export default function AdminDashboard() {
   const [cursoSeleccionadoParaEditar, setCursoSeleccionadoParaEditar] = useState(listaCursos[0]);
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
   const [formData, setFormData] = useState({ 
-    nombre: "", cedula: "", telefono: "", curso: "", 
-    estadoPago: "Pendiente", email: "", precio_pactado: "" 
+    nombre: "", 
+    cedula: "", 
+    telefono: "", 
+    curso: "", 
+    email: "",
+    ciudad_residencia: "", // Nuevo
+    barrio: "",    // Nuevo
+    empresa: "",   // Nuevo
+    nit: "",       // Nuevo
+    fecha_nacimiento: "",      // Nuevo
+    sexo: "",                // Nuevo
+    horario_preferencia: "",   // Nuevo
+    estadoPago: "Pendiente", 
+    precio_pactado: "" 
   });
-
   
   const descargarPDFAsistencia = async (bloque: any, inscritos: any[]) => {
   const doc = new jsPDF();
@@ -454,10 +578,10 @@ const cerrarSesion = async () => {
   // --- FUNCIÓN CORREGIDA Y MEJORADA ---
   const actualizarEstadoEstudiante = async (tabla: string, id: string, campo: string, valor: string, nombreEst: string) => {
     // Validación de seguridad para precios
-    if (userRole !== 'admin_general' && (campo === 'precio_final' || campo === 'precio_pactado')) {
+    if (userRole !== 'admin_general' 
+&& (campo === 'precio_final' || campo === 'precio_pactado')) {
       return toast.error("⛔ Solo Admin General edita precios.");
     }
-
     // 1. Intentar actualizar
     const { error } = await supabase.from(tabla).update({ [campo]: valor }).eq('id', id);
 
@@ -538,28 +662,44 @@ const ejecutarCambioEstado = async (item: any, docId: string, docLabel: string, 
   };
 
   // --- ACCIONES ADICIONALES ---
-  const registrarEstudiante = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const tId = toast.loading("Matriculando...");
-    const { error } = await supabase.from('estudiantes').insert([{ 
-      nombre: formData.nombre,
-      cedula: formData.cedula,
-      telefono: formData.telefono,
-      curso: formData.curso,
-      email: formData.email,
-      estado_pago: formData.estadoPago,
-      estado_documentacion: "Pendiente",
-      resultado_final: "Pendiente",
-      precio_final: formData.precio_pactado || (obtenerPrecioBase(formData.curso) - (obtenerPrecioBase(formData.curso) * (descuentoAplicado/100))).toLocaleString('es-CO')
-    }]);
-    
-    if (error) toast.error(error.message, { id: tId });
-    else { 
-      toast.success("Estudiante Matriculado", { id: tId }); 
-      setFormData({ nombre: "", cedula: "", telefono: "", curso: "", estadoPago: "Pendiente", email: "", precio_pactado: "" });
-      setActiveTab("lista"); fetchData();
-    }
-  };
+const registrarEstudiante = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const tId = toast.loading("Registrando pre-inscripción directa...");
+  
+  const cursoFinal = formData.curso || cursoSeleccionadoParaEditar;
+
+  const { error } = await supabase.from('preinscripciones').insert([{ 
+    nombre: formData.nombre.toUpperCase(),
+    cedula: formData.cedula,
+    telefono: formData.telefono,
+    email: formData.email,
+    curso: cursoFinal,
+    fecha_nacimiento: formData.fecha_nacimiento, // Nuevo
+    sexo: formData.sexo,                     // Nuevo
+    horario_preferencia: formData.horario_preferencia, // Nuevo
+    ciudad_residencia: formData.ciudad_residencia,
+    barrio: formData.barrio,
+    empresa: formData.empresa || "PARTICULAR",
+    nit: formData.nit || "N/A",
+    estado_pago: formData.estadoPago,
+    resultado_final: "Pendiente",
+    precio_pactado: formData.precio_pactado || (obtenerPrecioBase(cursoFinal) - (obtenerPrecioBase(cursoFinal) * (descuentoAplicado/100))).toLocaleString('es-CO')
+  }]);
+  
+  if (error) {
+    toast.error(`Error: ${error.message}`, { id: tId });
+  } else { 
+    toast.success("¡Pre-inscripción Directa Exitosa!", { id: tId }); 
+    setFormData({ 
+      nombre: "", cedula: "", telefono: "", email: "", curso: "", 
+      fecha_nacimiento: "", sexo: "", horario_preferencia: "",
+      ciudad_residencia: "", barrio: "", empresa: "", nit: "",
+      estadoPago: "Pendiente", precio_pactado: "" 
+    });
+    setActiveTab("lista");
+    fetchData();
+  }
+};
 
   const actualizarPrecioMaestro = async (id: string, nuevoPrecio: string) => {
     const { error } = await supabase.from('configuracion_cursos').update({ precio_base: nuevoPrecio }).eq('id', id);
@@ -611,30 +751,6 @@ const guardarEnAgenda = async () => {
   }
 };
 
-  const generarReporte = (est: any) => {
-    const requeridos = obtenerRequeridos(est.curso);
-    const verif = est.doc_verification || {};
-    const faltantes: string[] = [];
-    const rechazados: string[] = [];
-
-    requeridos.forEach(req => {
-      if (!getDocUrl(est, req.id, req.oldId)) faltantes.push(req.label);
-      else if (verif[req.id]?.status === 'rejected') rechazados.push(req.label);
-    });
-    
-    let msg = `Hola *${est.nombre}*, mensaje de AR Costa.\nCurso: *${est.curso}*.\n\n`;
-    if (faltantes.length === 0 && rechazados.length === 0) {
-      msg += `✅ *DOCUMENTACIÓN APROBADA*.\nEstado Pago: *${est.estado_pago || 'Pendiente'}*.\n`;
-    } else {
-      msg += `⚠️ *NOVEDADES EN DOCUMENTACIÓN*:\n`;
-      if(rechazados.length > 0) rechazados.forEach(f => msg += `❌ ${f} (Rechazado/Illegible)\n`);
-      if(faltantes.length > 0) faltantes.forEach(f => msg += `⚠️ ${f} (Faltante)\n`);
-    }
-    msg += `\nAtte: ${userName}.`;
-    setTextoReporte(msg);
-    setModalOpen(true);
-  };
-
   const borrarRegistro = async (tabla: string, id: string) => {
     if (userRole !== 'admin_general') return toast.error("⛔ Acceso Denegado");
     if(!confirm("¿Borrar permanentemente?")) return;
@@ -676,8 +792,12 @@ if (loading) return (
  return (
   <div className="flex h-screen bg-[#f8fafc] text-[#334155] overflow-hidden">
     <Toaster position="bottom-right" />
-    <ModalReporte isOpen={modalOpen} onClose={() => setModalOpen(false)} texto={textoReporte} />
-    
+    <ModalReporte 
+      isOpen={modalOpen} 
+      onClose={() => setModalOpen(false)} 
+      texto={textoReporte} 
+      telefono={estudianteSeleccionado?.telefono || ""} 
+    />    
     {/* BOTÓN HAMBURGUESA (Solo móvil) */}
     <button 
       onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
@@ -1189,13 +1309,16 @@ if (loading) return (
 )}
 
 
-          {/* LISTADOS DE ASISTENCIA */}  
+{/* LISTADOS DE ASISTENCIA */}  
 {activeTab === "listados" && (
   <div className="space-y-6 animate-in fade-in">
-    {/* MODAL RÁPIDO DE DETALLES DEL ESTUDIANTE */}
+    
+    {/* --- MODAL RÁPIDO DE DETALLES DEL ESTUDIANTE (MODIFICADO CON CERTIFICACIÓN) --- */}
     {estudianteSeleccionado && (
       <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
         <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
+          
+          {/* Header del Modal */}
           <div className="flex justify-between items-start mb-4">
             <div className="bg-blue-100 p-3 rounded-2xl text-blue-600">
               <FaUser size={24}/>
@@ -1204,10 +1327,12 @@ if (loading) return (
               <FaTimes size={20}/>
             </button>
           </div>
+
           <h4 className="font-black text-slate-800 text-xl leading-tight mb-1 uppercase">{estudianteSeleccionado.nombre}</h4>
           <p className="text-blue-600 font-bold text-xs mb-4">{estudianteSeleccionado.curso}</p>
           
-          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+          {/* Datos Informativos */}
+          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
             <div className="flex justify-between text-xs">
               <span className="text-slate-400 font-bold uppercase">Cédula:</span>
               <span className="text-slate-700 font-mono font-bold">{estudianteSeleccionado.cedula}</span>
@@ -1217,22 +1342,78 @@ if (loading) return (
               <span className="text-slate-700 font-bold">{estudianteSeleccionado.telefono || 'No registra'}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400 font-bold uppercase">ARL:</span>
-              <span className="text-purple-600 font-bold">{estudianteSeleccionado.arl_nombre || 'Pendiente'}</span>
-            </div>
-            <div className="flex justify-between text-xs border-t pt-2 mt-2">
-              <span className="text-slate-400 font-bold uppercase">Barrio:</span>
-              <span className="text-slate-700 font-bold">{estudianteSeleccionado.barrio || 'No registra'}</span>
+              <span className="text-slate-400 font-bold uppercase">Estado Aptitud:</span>
+              <span className={`font-black ${estudianteSeleccionado.resultado_final === 'APTO' ? 'text-emerald-600' : 'text-red-500'}`}>
+                {estudianteSeleccionado.resultado_final || 'Pendiente'}
+              </span>
             </div>
           </div>
           
-          <a 
-            href={`https://wa.me/57${estudianteSeleccionado.telefono}`} 
-            target="_blank"
-            className="mt-4 w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-center block shadow-lg hover:bg-emerald-600 transition-all uppercase text-xs tracking-widest"
-          >
-            Llamar / WhatsApp
-          </a>
+          {/* --- ZONA DE ACCIONES DE CERTIFICACIÓN --- */}
+          <div className="grid gap-3">
+            {estudianteSeleccionado.certificado_generado ? (
+              // CASO 1: YA TIENE CERTIFICADO -> MOSTRAR DESCARGA
+              <button 
+                onClick={() => {
+                   const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
+                   if(bloque) generarPDFCertificado(estudianteSeleccionado, bloque);
+                   else toast.error("No se encontraron datos de la agenda");
+                }}
+                className="w-full py-3 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-black text-center flex items-center justify-center gap-2 hover:bg-emerald-200 transition-all uppercase text-xs tracking-widest"
+              >
+                <FaCheckCircle/> Descargar Certificado
+              </button>
+            ) : (
+              // CASO 2: NO TIENE CERTIFICADO -> BOTÓN CERTIFICAR
+              <button 
+                onClick={async () => {
+                   if(estudianteSeleccionado.resultado_final !== 'APTO') return toast.error("El estudiante debe ser APTO");
+                   
+                   if(confirm(`¿Confirmas la certificación de ${estudianteSeleccionado.nombre}?`)) {
+                      const tId = toast.loading("Generando y firmando...");
+                      try {
+                        const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
+                        if(!bloque) throw new Error("Agenda no encontrada");
+
+                        // 1. Guardar en BD
+                        const estActualizado = await registrarCertificacion(estudianteSeleccionado, bloque);
+                        
+                        // 2. Actualizar la vista del modal al instante
+                        setEstudianteSeleccionado(estActualizado);
+                        fetchData(); // Refrescar la lista de atrás
+                        
+                        toast.success("¡Certificado Generado!", { id: tId });
+
+                        // 3. Ofrecer descarga inmediata
+                        if(confirm("Certificación exitosa. ¿Descargar PDF ahora?")) {
+                           await generarPDFCertificado(estActualizado, bloque);
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message, { id: tId });
+                      }
+                   }
+                }}
+                disabled={estudianteSeleccionado.resultado_final !== 'APTO'}
+                className={`w-full py-3 rounded-xl font-black text-center flex items-center justify-center gap-2 transition-all uppercase text-xs tracking-widest shadow-md ${
+                  estudianteSeleccionado.resultado_final === 'APTO' 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02]' 
+                    : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                }`}
+              >
+                <FaFilePdf/> Generar Certificación
+              </button>
+            )}
+
+            {/* Botón WhatsApp (Mantenido) */}
+            <a 
+              href={`https://wa.me/57${estudianteSeleccionado.telefono}`} 
+              target="_blank"
+              className="w-full py-3 bg-white border-2 border-slate-100 text-slate-500 rounded-xl font-bold text-center block hover:border-emerald-400 hover:text-emerald-500 transition-all uppercase text-xs tracking-widest"
+            >
+              Contactar WhatsApp
+            </a>
+          </div>
+
         </div>
       </div>
     )}
@@ -1251,6 +1432,7 @@ if (loading) return (
       />
     </div>
 
+    {/* TARJETAS DE CLASES */}
     <div className="grid md:grid-cols-2 gap-6">
       {agendaBD.filter(a => a.fecha === fechaSeleccionada).map(bloque => {
         const inscritos = [
@@ -1277,25 +1459,35 @@ if (loading) return (
             <div className="p-5 flex-1">
               {inscritos.length > 0 ? (
                 <div className="space-y-2">
-              {inscritos.map((e, idx) => (
-                <div 
-                  key={e.id} 
-                  // Asegúrate de que el estado se llame igual que arriba
-                  onClick={() => setEstudianteSeleccionado(e)} 
-                  className="flex justify-between items-center p-3 hover:bg-blue-50 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-blue-100 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black text-slate-300 group-hover:text-blue-400">{idx + 1}</span>
-                    <p className="text-xs font-bold text-slate-700 uppercase">{e.nombre}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 font-mono text-[9px] bg-slate-100 px-2 py-0.5 rounded-lg">
-                      {e.cedula}
-                    </span>
-                    <FaExternalLinkAlt className="text-slate-200 group-hover:text-blue-400" size={10}/>
-                  </div>
-                </div>
-              ))}
+                  {inscritos.map((e, idx) => (
+                    <div 
+                      key={e.id} 
+                      onClick={() => setEstudianteSeleccionado(e)} 
+                      className={`flex justify-between items-center p-3 rounded-2xl cursor-pointer transition-all border group ${
+                        e.certificado_generado 
+                          ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100' 
+                          : 'bg-white border-transparent hover:bg-blue-50 hover:border-blue-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-slate-300 group-hover:text-blue-400">{idx + 1}</span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 uppercase">{e.nombre}</p>
+                          {e.certificado_generado && (
+                            <span className="text-[8px] font-black text-emerald-600 flex items-center gap-1">
+                              <FaCheckCircle size={8}/> CERTIFICADO
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         {e.resultado_final !== 'APTO' && (
+                           <FaExclamationTriangle className="text-amber-400" size={12} title="No Apto / Pendiente"/>
+                         )}
+                         <FaExternalLinkAlt className="text-slate-200 group-hover:text-blue-400" size={10}/>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-10">
@@ -1318,35 +1510,74 @@ if (loading) return (
     </div>
   </div>
 )}
-
           {/* ESTUDIANTES */}
           {activeTab === "estudiantes" && (
             <div className="max-w-4xl bg-white rounded-3xl p-8 border border-slate-200 shadow-sm mx-auto animate-in fade-in">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaUserPlus className="text-blue-600"/> Matriculación Manual</h3>
-              <form onSubmit={registrarEstudiante} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input required placeholder="Nombre Completo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.nombre} onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
-                <input required placeholder="Documento (Cédula)" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.cedula} onChange={(e)=>setFormData({...formData, cedula: e.target.value})} />
+            <form onSubmit={registrarEstudiante} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <input required placeholder="Nombre Completo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.nombre} onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
+              <input required placeholder="Cédula" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.cedula} onChange={(e)=>setFormData({...formData, cedula: e.target.value})} />
+              
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-400 ml-1 uppercase">Fecha de Nacimiento</label>
+                <input required type="date" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.fecha_nacimiento} onChange={(e)=>setFormData({...formData, fecha_nacimiento: e.target.value})} />
+              </div>
 
-                <select 
-                  className="w-full p-2 bg-slate-50 border rounded-lg text-sm" 
-                  value={cursoSeleccionadoParaEditar} 
-                  onChange={(e) => setCursoSeleccionadoParaEditar(e.target.value)}
-                >
-                  <option value="">Seleccione curso del catálogo...</option>
-                  {catalogoCursos.map(c => (
-                    <option key={c.id} value={c.nombre_curso}>{c.nombre_curso}</option>
-                  ))}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-400 ml-1 uppercase">Género</label>
+                <select required className="p-3 bg-slate-50 border rounded-xl outline-none text-sm" value={formData.sexo} onChange={(e)=>setFormData({...formData, sexo: e.target.value})}>
+                  <option value="">Seleccione Género</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
                 </select>
-                <input placeholder="WhatsApp" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.telefono} onChange={(e)=>setFormData({...formData, telefono: e.target.value})} />
-                <input type="email" placeholder="Correo" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} />
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Estado del Pago</label>
-                  <select className="w-full p-3 bg-slate-50 border rounded-xl outline-none mt-1" value={formData.estadoPago} onChange={(e)=>setFormData({...formData, estadoPago: e.target.value})}><option value="Pendiente">Pendiente</option><option value="Pagado">Pagado</option></select>
-                </div>
-                <div className="md:col-span-2 flex gap-2">{[0, 10, 20, 30].map(d => (<button key={d} type="button" onClick={() => setDescuentoAplicado(d)} className={`flex-1 p-3 rounded-xl text-xs font-bold border ${descuentoAplicado === d ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{d === 0 ? 'Sin Descuento' : `${d}% OFF`}</button>))}</div>
-                <input placeholder="Valor Pactado ($)" className="p-3 bg-blue-50 border border-blue-100 rounded-xl outline-none font-bold text-blue-700" value={formData.precio_pactado || (obtenerPrecioBase(formData.curso) - (obtenerPrecioBase(formData.curso) * (descuentoAplicado/100))).toLocaleString('es-CO')} onChange={(e)=>setFormData({...formData, precio_pactado: e.target.value})} />
-                <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg">Completar Matrícula</button>
-              </form>
+              </div>
+
+              <input required type="email" placeholder="Correo Electrónico" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} />
+              <input required placeholder="WhatsApp (Ej: 3001234567)" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.telefono} onChange={(e)=>setFormData({...formData, telefono: e.target.value})} />
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-400 ml-1 uppercase">Horario de Preferencia</label>
+                <select required className="p-3 bg-slate-50 border rounded-xl outline-none text-sm" value={formData.horario_preferencia} onChange={(e)=>setFormData({...formData, horario_preferencia: e.target.value})}>
+                  <option value="">Seleccione Horario</option>
+                  <option value="Mañana (7:00 AM)">Mañana (7:00 AM)</option>
+                  <option value="Tarde (1:00 PM)">Tarde (1:00 PM)</option>
+                </select>
+              </div>
+
+              <select 
+                required
+                className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm font-bold mt-5" 
+                value={cursoSeleccionadoParaEditar} 
+                onChange={(e) => {
+                  setCursoSeleccionadoParaEditar(e.target.value);
+                  setFormData({...formData, curso: e.target.value});
+                }}
+              >
+                <option value="">Seleccione el curso...</option>
+                {catalogoCursos.map(c => (
+                  <option key={c.id} value={c.nombre_curso}>{c.nombre_curso}</option>
+                ))}
+              </select>
+
+              <input placeholder="CIUDAD o DIRECCIÓN" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.ciudad_residencia} onChange={(e)=>setFormData({...formData, ciudad_residencia: e.target.value})} />
+              <input placeholder="Barrio" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.barrio} onChange={(e)=>setFormData({...formData, barrio: e.target.value})} />
+
+              <input placeholder="Empresa (Opcional)" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.empresa} onChange={(e)=>setFormData({...formData, empresa: e.target.value})} />
+              <input placeholder="NIT Empresa" className="p-3 bg-slate-50 border rounded-xl outline-none" value={formData.nit} onChange={(e)=>setFormData({...formData, nit: e.target.value})} />
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Estado inicial de pago</label>
+                <select className="w-full p-3 bg-slate-50 border rounded-xl outline-none mt-1" value={formData.estadoPago} onChange={(e)=>setFormData({...formData, estadoPago: e.target.value})}>
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="Pagado">Pagado</option>
+                </select>
+              </div>
+
+              <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg uppercase tracking-widest mt-4">
+                Realizar Pre-Inscripción Directa
+              </button>
+            </form>
             </div>
           )}
 

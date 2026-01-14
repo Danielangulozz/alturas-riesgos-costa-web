@@ -1,139 +1,234 @@
+"use client";
+
+import React, { useState } from "react";
+import { FaTimes, FaCheckCircle, FaClock, FaBookOpen, FaHardHat, FaInfoCircle } from "react-icons/fa";
+
 export default function CursosPage() {
+  const [cursoSeleccionado, setCursoSeleccionado] = useState<any>(null);
+
+  // SOLO LOS 4 CURSOS PRINCIPALES CON LA DATA DETALLADA
   const cursos = [
-    {
-      titulo: "Trabajo en alturas – Nivel básico",
-      desc: "Formación inicial para trabajadores que realizan tareas en altura.",
-      horas: "8 horas",
-      icono: "🪜",
-    },
-    {
-      titulo: "Trabajo en alturas – Nivel avanzado",
-      desc: "Capacitación para trabajadores con tareas de alto riesgo en alturas.",
-      horas: "40 horas",
-      icono: "🏗️",
-    },
-    {
-      titulo: "Reentrenamiento en trabajo en alturas",
-      desc: "Actualización obligatoria de conocimientos según normativa vigente.",
-      horas: "8 horas",
-      icono: "🔄",
-    },
-    {
-      titulo: "Jefes de área",
-      desc: "Curso dirigido a responsables de supervisar trabajos en altura y garantizar condiciones seguras.",
-      horas: "8 horas",
-      icono: "👷‍♂️",
-    },
     {
       titulo: "Trabajador autorizado",
       desc: "Capacitación para personal autorizado a ejecutar labores operativas en alturas.",
-      horas: "32 horas",
+      horasTotal: "32 horas",
       icono: "🦺",
+      // DETALLES INTERNOS
+      horasTeoricas: 12.5,
+      horasPracticas: 19.5,
+      requisitos: [
+        "Fotocopia de Cédula (CC)",
+        "ARL Vigente (Riesgo V)",
+        "EMO (Examen Médico) con aptitud para alturas",
+        "Certificado de afiliación a EPS"
+      ],
+      imagen: "/img/curso-trabajador.jpg" // Asegúrate de poner una foto real aquí luego
     },
     {
-      titulo: "Coordinador de trabajo en alturas",
-      desc: "Formación para coordinar, controlar y supervisar trabajos en altura conforme a la normativa.",
-      horas: "80 horas",
+      titulo: "Reentrenamiento",
+      desc: "Actualización obligatoria de conocimientos para mantener la certificación vigente.",
+      horasTotal: "8 horas",
+      icono: "🔄",
+      horasTeoricas: 1.6,
+      horasPracticas: 6.4,
+      requisitos: [
+        "Fotocopia de Cédula (CC)",
+        "ARL Vigente",
+        "Certificado de curso anterior (Vencido o por vencer)",
+        "EMO con aptitud para alturas",
+        "Certificado de afiliación a EPS",
+        "Haber realizado el curso de Trabajador Autorizado previamente"
+      ],
+      imagen: "/img/curso-reentrenamiento.jpg"
+    },
+    {
+      titulo: "Coordinador de alturas",
+      desc: "Formación para coordinar, controlar y supervisar trabajos en altura según normativa.",
+      horasTotal: "80 horas",
       icono: "📋",
+      horasTeoricas: 32,
+      horasPracticas: 48,
+      requisitos: [
+        "Fotocopia de Cédula (CC)",
+        "Certificado de Trabajador Autorizado",
+        "Experiencia mínima certificada (1 año)",
+        "Carta laboral",
+        "ARL Vigente",
+        "EMO con aptitud para alturas",
+        "Certificado de afiliación a EPS",
+        "Certificado 20h SST (Si no lo tiene, puede hacerlo con nosotros antes del curso)"
+      ],
+      imagen: "/img/curso-coordinador.jpg"
     },
     {
-      titulo: "Autorización de coordinador",
-      desc: "Actualización y validación de competencias para coordinadores certificados.",
-      horas: "16 horas",
-      icono: "✅",
-    },
-    {
-      titulo: "Armado de andamios",
-      desc: "Capacitación práctica sobre el montaje seguro de sistemas de andamiaje.",
-      horas: "16 horas",
-      icono: "🔩",
-    },
-    {
-      titulo: "Andamios",
-      desc: "Formación teórica y práctica sobre uso, inspección y seguridad en andamios.",
-      horas: "12 horas",
-      icono: "🏗️",
-    },
-    {
-      titulo: "Rescate industrial",
-      desc: "Entrenamiento especializado para atención de emergencias y rescate en alturas.",
-      horas: "24 horas",
-      icono: "🚑",
+      titulo: "Jefes de área",
+      desc: "Para responsables de tomar decisiones administrativas sobre trabajos en altura.",
+      horasTotal: "8 horas",
+      icono: "👷‍♂️",
+      horasTeoricas: 8,
+      horasPracticas: 0,
+      requisitos: [
+        "Cédula (CC)",
+        "ARL Vigente",
+        "EMO con aptitud para alturas",
+        "Certificado de afiliación a EPS",
+        "Certificado trabajador autorizado",
+        "Certificado 20h SST (Si no lo tiene, puede hacerlo con nosotros antes del curso)",
+        "Certificado coordinador de alturas (opcional pero recomendado)",
+        "Certificado reentrenamiento (opcional pero recomendado)",
+        "Certificado curso primero auxilios (opcional pero recomendado)",
+
+      ],
+      imagen: "/img/curso-jefe.jpg"
     },
   ];
 
   return (
-    <section className="bg-soft">
+    <section className="bg-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-20">
-        <h1 className="text-4xl font-bold text-black">
-          Nuestros cursos
-        </h1>
+        
+        {/* HEADER */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4">
+            Nuestros Programas de Formación
+          </h1>
+          <p className="text-slate-500 max-w-2xl mx-auto text-lg">
+            Capacitación certificada bajo la <span className="font-bold text-blue-600">Resolución 4272 de 2021</span>. 
+            Selecciona un curso para ver el temario y requisitos.
+          </p>
+        </div>
 
-        <p className="mt-4 text-soft max-w-2xl text-black">
-          Todos nuestros cursos cumplen con la Resolución 4272 de 2021 del
-          Ministerio del Trabajo.
-        </p>
-
-        <div className="mt-14 grid md:grid-cols-3 gap-8">
+        {/* GRID DE CURSOS (SOLO 4) */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {cursos.map((curso) => (
             <div
               key={curso.titulo}
+              onClick={() => setCursoSeleccionado(curso)}
               className="
-                group bg-main rounded-2xl p-8
-                border border-soft
-                shadow-sm hover:shadow-xl
+                group bg-white rounded-3xl p-6
+                border border-slate-200 cursor-pointer
+                shadow-sm hover:shadow-2xl hover:shadow-blue-900/10
                 transition-all duration-300
-                hover:-translate-y-1
-                flex flex-col
+                hover:-translate-y-2
+                flex flex-col relative overflow-hidden
               "
             >
+              {/* Decoración Hover */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+
               {/* ICONO */}
-              <div className="text-4xl mb-4">
+              <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                 {curso.icono}
               </div>
 
               {/* BADGE HORAS */}
-              <span
-                className="
-                  w-fit mb-3
-                  rounded-full px-4 py-1
-                  text-sm font-semibold
-                  bg-blue-600 text-primary
-                "
-              >
-                {curso.horas}
+              <span className="w-fit mb-3 rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
+                {curso.horasTotal}
               </span>
 
-              <h3 className="text-xl font-semibold text-black">
+              <h3 className="text-xl font-bold text-slate-800 mb-3 leading-tight group-hover:text-blue-600 transition-colors">
                 {curso.titulo}
               </h3>
 
-              <p className="mt-3 text-gray-800 leading-relaxed flex-1">
+              <p className="text-slate-500 text-sm leading-relaxed mb-6">
                 {curso.desc}
               </p>
 
-              {/* BOTÓN CTA */}
-              <a
-                href="/contacto"
-                className="
-                  mt-6 inline-flex items-center justify-center
-                  rounded-xl px-6 py-3
-                  font-semibold
-                  bg-green-400
-                  text-black
-                  shadow-md
-                  hover:brightness-105
-                  hover:scale-[1.05]
-                  active:scale-[0.97]
-                  transition-all
-                "
-              >
-                Solicitar curso →
-              </a>
+              <button className="mt-auto w-full py-3 rounded-xl border-2 border-slate-100 text-slate-600 font-bold text-sm uppercase flex items-center justify-center gap-2 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <FaInfoCircle/> Ver Detalles
+              </button>
             </div>
           ))}
         </div>
       </div>
+
+      {/* --- MODAL DETALLE DEL CURSO --- */}
+      {cursoSeleccionado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop con Blur */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setCursoSeleccionado(null)}
+          ></div>
+
+          {/* Contenido Modal */}
+          <div className="bg-white rounded-[32px] w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row animate-in zoom-in duration-300 max-h-[90vh] md:max-h-none overflow-y-auto md:overflow-visible">
+            
+            {/* COLUMNA IZQUIERDA: FOTO Y RESUMEN */}
+            <div className="md:w-2/5 bg-slate-100 relative min-h-[200px] md:min-h-full flex flex-col">
+                {/* Imagen de fondo (Placeholder o real) */}
+                <div className="absolute inset-0 bg-slate-300">
+                   {/* AQUÍ VA LA IMAGEN REAL <img src={cursoSeleccionado.imagen} ... /> */}
+                   <div className="w-full h-full flex items-center justify-center text-slate-400 text-6xl">
+                      {cursoSeleccionado.icono}
+                   </div>
+                   {/* Gradiente encima para que se lea el texto */}
+                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+                </div>
+
+                <div className="relative z-10 mt-auto p-8 text-white">
+                    <span className="inline-block px-3 py-1 bg-blue-600 rounded-lg text-xs font-black uppercase tracking-widest mb-2 shadow-lg">
+                        Certificado Oficial
+                    </span>
+                    <h2 className="text-3xl font-black leading-none mb-2">{cursoSeleccionado.titulo}</h2>
+                    <p className="text-slate-300 text-sm font-medium">{cursoSeleccionado.horasTotal} de Intensidad</p>
+                </div>
+            </div>
+
+            {/* COLUMNA DERECHA: DETALLES */}
+            <div className="md:w-3/5 p-8 md:p-10 bg-white">
+                <button 
+                    onClick={() => setCursoSeleccionado(null)}
+                    className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                >
+                    <FaTimes size={20}/>
+                </button>
+
+                {/* DESGLOSE HORARIO */}
+                <div className="mb-8">
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <FaClock/> Distribución del Tiempo
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                            <span className="block text-3xl font-black text-blue-600">{cursoSeleccionado.horasTeoricas}h</span>
+                            <span className="text-xs font-bold text-blue-400 uppercase">Teóricas</span>
+                        </div>
+                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                            <span className="block text-3xl font-black text-emerald-600">{cursoSeleccionado.horasPracticas}h</span>
+                            <span className="text-xs font-bold text-emerald-400 uppercase">Prácticas</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* REQUISITOS */}
+                <div className="mb-8">
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <FaBookOpen/> Requisitos de Inscripción
+                    </h3>
+                    <ul className="space-y-3">
+                        {cursoSeleccionado.requisitos.map((req: string, i: number) => (
+                            <li key={i} className="flex items-start gap-3 text-slate-600 text-sm font-medium">
+                                <FaCheckCircle className="text-emerald-500 mt-0.5 flex-shrink-0"/>
+                                {req}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                {/* BOTÓN DE ACCIÓN */}
+                <a 
+                    href="/contacto" // O redirige al WhatsApp directamente
+                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-xl hover:shadow-blue-900/30 hover:-translate-y-1"
+                >
+                    <FaHardHat/> Inscribirme Ahora
+                </a>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </section>
   );
 }

@@ -61,14 +61,15 @@ export default function Navbar() {
                 <li><Link href="/nosotros" className="hover:text-[#FFD700] transition">Nosotros</Link></li>
                 <li><Link href="/cursos" className="hover:text-[#FFD700] transition">Cursos</Link></li>
                 <li><Link href="/certificados" className="hover:text-[#FFD700] transition">Certificados</Link></li>
+                <li><Link href="/registro" className="hover:text-[#FFD700] transition">Subir Archivos</Link></li>
               </ul>
 
               {/* CTA DESKTOP */}
               <Link
-                href="/certificados"
+                href="/preinscripcion"
                 className="hidden md:inline-flex rounded-full px-6 py-2.5 text-[10px] font-black uppercase tracking-widest bg-[#FFD700] text-[#0F172A] hover:bg-white transition-all"
               >
-                Certificados
+                Pre-Inscripción
               </Link>
 
               {/* BOTÓN HAMBURGUESA MÓVIL */}

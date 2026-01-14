@@ -4,9 +4,7 @@ import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { 
-  FaUser, FaIdCard, FaBuilding, FaPhone, FaEnvelope, 
-  FaCalendarAlt, FaClock, FaCheckCircle, FaFileUpload, 
-  FaMapMarkerAlt, FaVenusMars, FaHome, FaUserTie, FaMapSigns, FaExclamationTriangle
+  FaCheckCircle, FaFileUpload, FaExclamationTriangle, FaShieldAlt, FaExternalLinkAlt
 } from "react-icons/fa";
 
 export default function FormPreInscripcion() {
@@ -35,7 +33,7 @@ export default function FormPreInscripcion() {
 
   useEffect(() => {
     const fetchCursos = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('configuracion_cursos')
         .select('*')
         .order('nombre_curso', { ascending: true });
@@ -61,6 +59,10 @@ export default function FormPreInscripcion() {
   };
 
   const guardarEnBaseDeDatos = async () => {
+    if (!formData.acepta_datos) {
+        return toast.error("Debes aceptar la política de privacidad.");
+    }
+
     setLoading(true);
     try {
       const cursoData = catalogoCursos.find(c => c.nombre_curso === formData.curso);
@@ -72,14 +74,14 @@ export default function FormPreInscripcion() {
         email: formData.email,
         curso: formData.curso,
         horario_preferencia: formData.horario_preferencia,
-        acepta_datos: formData.acepta_datos,
+        acepta_datos: formData.acepta_datos, // ESTO ES VITAL GUARDARLO
         sexo: formData.sexo,
         fecha_nacimiento: formData.fecha_nacimiento,
         ciudad_residencia: formData.direccion,
         barrio: formData.barrio,
         tipo_cliente: tipoCliente,
-        empresa: tipoCliente === "Empresa" ? formData.empresa : "Particular",
-        nit: tipoCliente === "Empresa" ? formData.nit : "N/A",
+        empresa: tipoCliente === "Empresa" ? formData.empresa : "Independiente",
+        nit: tipoCliente === "Empresa" ? formData.nit : " ",
         estado_proceso: 'Pre-inscrito',
         resultado_final: 'Pendiente',
         precio_pactado: cursoData ? cursoData.precio_base.toString() : "0"
@@ -118,28 +120,72 @@ export default function FormPreInscripcion() {
     );
   }
 
-  // --- VISTA 2: CONFIRMACIÓN ---
+  // --- VISTA 2: CONFIRMACIÓN (AQUÍ ESTÁ EL CAMBIO IMPORTANTE) ---
   if (confirmar) {
     return (
-      <div className="mt-32 mb-20 max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+      <div className="mt-32 mb-20 max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-2">
         <div className="bg-[#1E3A8A] p-8 text-center text-white">
           <FaExclamationTriangle className="text-[#FFD700] text-4xl mx-auto mb-2" />
           <h2 className="text-2xl font-black uppercase">Confirmar Registro</h2>
         </div>
+        
         <div className="p-8 space-y-6">
-          <div className="bg-slate-100 p-8 rounded-3xl border-2 border-slate-200 text-slate-900">
-            <p className="mb-2"><b>Estudiante:</b> {formData.nombre}</p>
-            <p className="mb-2"><b>Cédula:</b> {formData.cedula}</p>
-            <p className="mb-2"><b>Edad:</b> {calcularEdad(formData.fecha_nacimiento)} años</p>
-            <p className="mb-2 text-blue-800"><b>Curso:</b> {formData.curso}</p>
+          {/* Resumen de Datos */}
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 text-slate-700 text-sm space-y-2">
+            <p className="flex justify-between border-b border-slate-200 pb-2"><span>Estudiante:</span> <b className="text-slate-900 uppercase">{formData.nombre}</b></p>
+            <p className="flex justify-between border-b border-slate-200 pb-2"><span>Cédula:</span> <b className="text-slate-900">{formData.cedula}</b></p>
+            <p className="flex justify-between border-b border-slate-200 pb-2"><span>Curso:</span> <b className="text-blue-700 uppercase">{formData.curso}</b></p>
+            <p className="flex justify-between"><span>Tipo:</span> <b className="text-slate-900">{tipoCliente}</b></p>
           </div>
-          <div className="flex items-start gap-4 p-5 bg-amber-50 rounded-2xl border-2 border-amber-200">
-            <input type="checkbox" className="mt-1 w-8 h-8 accent-[#1E3A8A]" checked={formData.acepta_datos} onChange={(e) => setFormData({...formData, acepta_datos: e.target.checked})} />
-            <p className="text-[11px] text-slate-900 font-bold uppercase">Acepto Tratamiento de Datos (Obligatorio)</p>
+
+          {/* CHECKBOX LEGAL MEJORADO */}
+          <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100">
+             <label className="flex items-start gap-4 cursor-pointer group">
+                <div className="relative flex items-center pt-1">
+                    <input 
+                        type="checkbox" 
+                        className="peer h-6 w-6 cursor-pointer appearance-none rounded-lg border-2 border-slate-300 transition-all checked:border-blue-600 checked:bg-blue-600 hover:border-blue-400"
+                        checked={formData.acepta_datos} 
+                        onChange={(e) => setFormData({...formData, acepta_datos: e.target.checked})} 
+                    />
+                    <FaCheckCircle className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                </div>
+                
+                <div className="text-xs text-slate-500 font-medium leading-relaxed">
+                    <span className="font-bold text-slate-900 uppercase flex items-center gap-2 mb-1">
+                        <FaShieldAlt className="text-blue-600"/> Autorización de Datos
+                    </span>
+                    De conformidad con la <strong className="text-slate-700">Ley 1581 de 2012</strong>, autorizo de manera libre y voluntaria a 
+                    <strong> Alturas y Riesgos de la Costa S.A.S</strong> para el tratamiento de mis datos personales según la 
+                    
+                    <Link href="/politica-privacidad" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
+                        Política de Privacidad <FaExternalLinkAlt size={8}/>
+                    </Link> 
+                    y el 
+                    <Link href="/tratamiento-datos" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
+                         Manual de Tratamiento <FaExternalLinkAlt size={8}/>
+                    </Link>.
+                </div>
+             </label>
           </div>
-          <button disabled={loading || !formData.acepta_datos} onClick={guardarEnBaseDeDatos} className={`w-full py-5 rounded-2xl font-black uppercase shadow-xl ${formData.acepta_datos ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-            {loading ? "GUARDANDO..." : "CONFIRMAR Y GUARDAR"}
-          </button>
+
+          <div className="grid gap-3">
+             <button 
+                disabled={loading || !formData.acepta_datos} 
+                onClick={guardarEnBaseDeDatos} 
+                className={`w-full py-5 rounded-2xl font-black uppercase shadow-xl transition-all ${
+                    formData.acepta_datos 
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-[1.02]' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+             >
+                {loading ? "GUARDANDO..." : "ACEPTAR Y FINALIZAR INSCRIPCIÓN"}
+             </button>
+             
+             <button onClick={() => setConfirmar(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase py-2">
+                Volver y corregir datos
+             </button>
+          </div>
         </div>
       </div>
     );
@@ -159,10 +205,10 @@ export default function FormPreInscripcion() {
         <div className="space-y-3">
           <label className="text-[11px] font-black text-slate-700 uppercase">¿Quién paga el curso? *</label>
           <div className="flex gap-4 p-1.5 bg-slate-100 rounded-2xl">
-            {["Particular", "Empresa"].map((tipo) => (
+            {["Independiente", "Empresa"].map((tipo) => (
               <button key={tipo} type="button" onClick={() => setTipoCliente(tipo)}
-                className={`flex-1 py-4 rounded-xl font-black text-xs uppercase ${tipoCliente === tipo ? 'bg-[#1E3A8A] text-white shadow-lg' : 'text-slate-500'}`}>
-                {tipo === "Particular" ? "Yo Mismo" : "Mi Empresa"}
+                className={`flex-1 py-4 rounded-xl font-black text-xs uppercase transition-all ${tipoCliente === tipo ? 'bg-[#1E3A8A] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}>
+                {tipo === "Independiente" ? "Yo Mismo" : "Mi Empresa"}
               </button>
             ))}
           </div>
@@ -172,11 +218,11 @@ export default function FormPreInscripcion() {
         <div className="grid md:grid-cols-2 gap-5">
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-700 uppercase">Nombre Completo *</label>
-            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500" onChange={(e) => setFormData({...formData, nombre: e.target.value})} />
+            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500 transition-colors" onChange={(e) => setFormData({...formData, nombre: e.target.value})} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-700 uppercase">Cédula *</label>
-            <input required type="number" className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500" onChange={(e) => setFormData({...formData, cedula: e.target.value})} />
+            <input required type="number" className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500 transition-colors" onChange={(e) => setFormData({...formData, cedula: e.target.value})} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-700 uppercase">F. Nacimiento *</label>
@@ -196,11 +242,11 @@ export default function FormPreInscripcion() {
         <div className="grid md:grid-cols-2 gap-5">
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-700 uppercase">Ciudad *</label>
-            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500" onChange={(e) => setFormData({...formData, direccion: e.target.value})} />
+            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500 transition-colors" onChange={(e) => setFormData({...formData, direccion: e.target.value})} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-700 uppercase">Barrio *</label>
-            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500" onChange={(e) => setFormData({...formData, barrio: e.target.value})} />
+            <input required className="w-full p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-500 transition-colors" onChange={(e) => setFormData({...formData, barrio: e.target.value})} />
           </div>
         </div>
 
@@ -244,7 +290,7 @@ export default function FormPreInscripcion() {
           </div>
         </div>
 
-        <button type="submit" className="w-full bg-[#FFD700] text-[#0F172A] py-5 rounded-2xl font-black uppercase shadow-xl hover:bg-[#E6C200] transition-all">
+        <button type="submit" className="w-full bg-[#FFD700] text-[#0F172A] py-5 rounded-2xl font-black uppercase shadow-xl hover:bg-[#E6C200] transition-all hover:scale-[1.01]">
           CONTINUAR A CONFIRMACIÓN
         </button>
       </form>
