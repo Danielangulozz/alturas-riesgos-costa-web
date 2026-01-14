@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react"; // 1. IMPORTAR SUSPENSE
 import { useSearchParams } from "next/navigation"; 
 import { supabase } from "@/lib/supabase"; 
 import { generarPDFCertificado } from "@/lib/certificadoLogic"; 
 import { FaSearch, FaDownload, FaCheckCircle, FaTimesCircle, FaSpinner, FaIdCard, FaCalendarCheck } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 
-export default function CertificadosPage() {
+// 2. CAMBIAMOS EL NOMBRE DE TU FUNCIÓN ORIGINAL A "SearchContent" O ALGO INTERNO
+function SearchContent() {
   const searchParams = useSearchParams();
   
   // Estados
@@ -17,7 +18,7 @@ export default function CertificadosPage() {
   const [bloqueAgenda, setBloqueAgenda] = useState<any>(null); 
   const [error, setError] = useState("");
 
-  // 1. EFECTO: Detectar QR
+  // EFECTO: Detectar QR
   useEffect(() => {
     const q = searchParams.get("q");
     if (q) {
@@ -26,7 +27,7 @@ export default function CertificadosPage() {
     }
   }, [searchParams]);
 
-  // 2. FUNCIÓN DE BÚSQUEDA
+  // FUNCIÓN DE BÚSQUEDA
   const handleSearch = async (busquedaManual?: string) => {
     const valor = busquedaManual || query;
     if (!valor) return toast.error("Ingresa una cédula o código");
@@ -83,7 +84,7 @@ export default function CertificadosPage() {
     }
   };
 
-  // 3. FUNCIÓN DE DESCARGA
+  // FUNCIÓN DE DESCARGA
   const descargarCopia = async () => {
     if (!resultado || !bloqueAgenda) return;
     const t = toast.loading("Generando PDF...");
@@ -97,14 +98,7 @@ export default function CertificadosPage() {
   };
 
   return (
-    <section className="relative min-h-screen bg-[#F8FAFC] px-6 py-20 flex flex-col items-center justify-center">
-      <Toaster position="bottom-center"/>
-      
-      {/* Fondo sutil */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
-
-      {/* CONTENEDOR PRINCIPAL */}
-      <div className="relative max-w-2xl w-full mx-auto z-10">
+    <div className="relative max-w-2xl w-full mx-auto z-10">
 
         {/* TARJETA DE BÚSQUEDA */}
         <div className="bg-white rounded-[24px] shadow-xl shadow-slate-200/60 border border-slate-100 p-8 md:p-10">
@@ -154,7 +148,7 @@ export default function CertificadosPage() {
             </div>
         </div>
 
-        {/* --- RESULTADO: ÉXITO --- */}
+        {/* RESULTADO: ÉXITO */}
         {resultado && (
             <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="bg-white border border-emerald-100 rounded-[24px] p-0 shadow-xl shadow-emerald-100/50 overflow-hidden">
@@ -165,8 +159,6 @@ export default function CertificadosPage() {
                             <FaCheckCircle size={24}/>
                         </div>
                         <div>
-                            {/* Oculté el "Estado: Vigente" por si acaso se asocia a la fecha, 
-                                pero puedes descomentarlo si solo querías quitar la fecha numérica */}
                             <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Certificado Auténtico</p>
                             <h2 className="text-xl font-black text-slate-800 leading-none">{resultado.nombre}</h2>
                         </div>
@@ -181,7 +173,7 @@ export default function CertificadosPage() {
                             </p>
                         </div>
 
-                        {/* SOLO MOSTRAMOS LA FECHA DE EMISIÓN */}
+                        {/* FECHA EMISIÓN */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
                             <span className="text-[10px] font-black text-slate-400 uppercase">Fecha de Emisión</span>
                             <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -207,7 +199,7 @@ export default function CertificadosPage() {
             </div>
         )}
 
-        {/* --- RESULTADO: ERROR --- */}
+        {/* RESULTADO: ERROR */}
         {error && (
              <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                  <div className="bg-white border-l-4 border-red-500 rounded-xl p-6 shadow-lg shadow-red-100/50 flex items-start gap-4">
@@ -225,8 +217,29 @@ export default function CertificadosPage() {
                 © {new Date().getFullYear()} Alturas y Riesgos de la Costa S.A.S
             </p>
         </div>
+    </div>
+  );
+}
 
-      </div>
+// 3. EXPORTAMOS LA PÁGINA PRINCIPAL QUE ENVUELVE TODO EN SUSPENSE
+export default function CertificadosPage() {
+  return (
+    <section className="relative min-h-screen bg-[#F8FAFC] px-6 py-20 flex flex-col items-center justify-center">
+      <Toaster position="bottom-center"/>
+      
+      {/* Fondo sutil */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+
+      {/* AQUÍ ESTÁ LA SOLUCIÓN: Suspense Boundary */}
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+           <FaSpinner className="animate-spin text-4xl text-blue-600 mb-4"/>
+           <p className="text-slate-500 font-bold">Cargando sistema de verificación...</p>
+        </div>
+      }>
+        <SearchContent />
+      </Suspense>
+
     </section>
   );
 }
