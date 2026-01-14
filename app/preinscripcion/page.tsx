@@ -158,11 +158,11 @@ export default function FormPreInscripcion() {
                     De conformidad con la <strong className="text-slate-700">Ley 1581 de 2012</strong>, autorizo de manera libre y voluntaria a 
                     <strong> Alturas y Riesgos de la Costa S.A.S</strong> para el tratamiento de mis datos personales según la 
                     
-                    <Link href="/politica-privacidad" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
+                    <Link href="/privacidad" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
                         Política de Privacidad <FaExternalLinkAlt size={8}/>
                     </Link> 
                     y el 
-                    <Link href="/tratamiento-datos" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
+                    <Link href="/datos" target="_blank" className="text-blue-600 hover:text-blue-800 font-bold mx-1 inline-flex items-center gap-0.5">
                          Manual de Tratamiento <FaExternalLinkAlt size={8}/>
                     </Link>.
                 </div>
