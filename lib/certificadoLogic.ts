@@ -178,8 +178,9 @@ export const generarPDFCertificado = async (estudiante: any, bloqueAgenda: any) 
   doc.text(estudiante.certificado_codigo, width / 2, 188, { align: 'center' });
 
   // 5. QR
-  const urlVerificacion = `${window.location.origin}/verificar?q=${estudiante.certificado_codigo}`;
-  
+  const baseUrl = "https://alturas-riesgos-costa-web.vercel.app/";
+  const urlVerificacion = `${baseUrl}/certificados?q=${estudiante.certificado_codigo}`;
+
   try {
     const qrDataUrl = await QRCode.toDataURL(urlVerificacion, { margin: 0, width: 70 });
     doc.addImage(qrDataUrl, 'PNG', (width / 2) - 10, 190, 20, 18);
