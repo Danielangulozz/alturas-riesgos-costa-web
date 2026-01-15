@@ -2,7 +2,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { registrarCertificacion, generarPDFCertificado } from "@/lib/certificadoLogic";
+import { registrarCertificacion, generarPDFCertificado, revocarCertificacion } from "@/lib/certificadoLogic";
 import React, { useState, useEffect } from "react";
 import { 
   FaUsers, FaUserPlus, FaSignOutAlt, FaUserCog, FaEnvelope, FaShieldAlt, 
@@ -10,7 +10,7 @@ import {
   FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle, 
   FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaHistory, 
   FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock,
-  FaMapMarkerAlt, FaUser
+  FaMapMarkerAlt, FaUser, FaTrashAlt, FaFire, FaChartLine, FaBell
 } from "react-icons/fa";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
   
   // --- ESTADOS GLOBALES ---
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("solicitudes");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // INFO USUARIO
@@ -763,6 +763,26 @@ const guardarEnAgenda = async () => {
     ...estudiantes.map(e => ({ ...e, origen: 'estudiantes', etiqueta: 'MANUAL' }))
   ].filter(i => JSON.stringify(i).toLowerCase().includes(busqueda.toLowerCase()));
 
+
+  // --- CÁLCULOS PARA EL DASHBOARD (BENTO GRID) ---
+  const statsDashboard = {
+    totalAlumnos: estudiantes.length + preinscripciones.length,
+    solicitudesPendientes: solicitudes.length,
+    // Cuenta cuántos logs son de HOY para la notificación roja
+    cambiosHoy: logsRecientes.filter(l => {
+       const fechaLog = new Date(l.created_at);
+       const hoy = new Date();
+       return fechaLog.getDate() === hoy.getDate() && 
+              fechaLog.getMonth() === hoy.getMonth() && 
+              fechaLog.getFullYear() === hoy.getFullYear();
+    }).length,
+    // Filtra las próximas 3 clases ordenadas por fecha
+    proximosCursos: agendaBD
+      .filter(a => new Date(a.fecha) >= new Date(new Date().setHours(0,0,0,0))) 
+      .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+      .slice(0, 3)
+  };
+
   // Busca la parte de tu código que dice: if (loading) return ... y cámbiala por esta:
 
 if (loading) return (
@@ -824,7 +844,7 @@ if (loading) return (
       `}>
         
         {/* LOGO AYR ADMIN */}
-        <div className="p-2 border-b border-slate-800/50 flex flex-col items-center gap-3">
+        <div className="p-2 border-b border-slate-800/50 flex flex-col items-center gap-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
           <img src="/logo-blanco.webp" alt="AR COSTA" className="w-16 h-16 object-contain" />
           <div className="text-center">
             <h1 className="text-2xl font-black tracking-tighter">
@@ -925,6 +945,117 @@ if (loading) return (
     </div>
   </div>
 </header>
+
+{/* --- INICIO DASHBOARD BENTO GRID (CON ROLES) --- */}
+          {activeTab === "dashboard" && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in zoom-in duration-300 mb-8">
+              
+              {/* 1. BIENVENIDA (VISIBLE PARA TODOS - MENSAJE DINÁMICO) */}
+              <div className="md:col-span-2 bg-gradient-to-r from-blue-900 to-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl">
+                 <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12"><FaShieldAlt size={180} /></div>
+                 <div className="relative z-10">
+                    <span className="inline-block px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-white/20">👋 Hola de nuevo</span>
+                    <h2 className="text-3xl font-black mb-2">Bienvenido, {userName.split(' ')[0]}</h2>
+                    
+                    {/* LÓGICA DEL MENSAJE DE BIENVENIDA */}
+                    <p className="text-blue-200 text-sm max-w-sm leading-relaxed">
+                      {userRole === 'trainer' 
+                        ? "Aquí tienes tu programación de entrenamientos. Revisa tu agenda y prepárate para la próxima clase."
+                        : `Resumen general de la academia. Tienes ${statsDashboard.solicitudesPendientes} solicitudes web esperando gestión.`
+                      }
+                    </p>
+
+                    <button onClick={() => setActiveTab('listados')} className="mt-6 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-xs uppercase hover:bg-blue-50 transition shadow-lg flex items-center gap-2">
+                       <FaCalendarAlt /> Ver Calendario Completo
+                    </button>
+                 </div>
+              </div>
+
+              {/* 2. ESTADÍSTICAS RÁPIDAS (OCULTO PARA TRAINERS) */}
+              {userRole !== 'trainer' && (
+                <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between hover:border-blue-200 transition-all">
+                   <div className="flex items-start justify-between">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><FaUsers size={20}/></div>
+                      <span className="text-[10px] font-black uppercase text-slate-300 bg-slate-50 px-2 py-1 rounded-lg">Total</span>
+                   </div>
+                   <div>
+                      <h3 className="text-4xl font-black text-slate-800 tracking-tighter">{statsDashboard.totalAlumnos}</h3>
+                      <p className="text-xs text-slate-400 font-bold uppercase mt-1">Alumnos en Base de Datos</p>
+                   </div>
+                </div>
+              )}
+
+              {/* 3. NOTIFICACIONES LOGS (SOLO ADMIN Y DIRECTOR) */}
+              {['admin_general', 'director'].includes(userRole) && (
+                <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between relative overflow-hidden hover:border-purple-200 transition-all cursor-pointer" onClick={() => setActiveTab('logs')}>
+                   <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
+                   <div className="flex items-start justify-between relative z-10">
+                      <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><FaFire size={20}/></div>
+                      {statsDashboard.cambiosHoy > 0 && (
+                        <span className="text-[10px] font-black uppercase text-white bg-red-500 px-2 py-1 rounded-lg animate-pulse shadow-red-200 shadow-lg">
+                          +{statsDashboard.cambiosHoy} Nuevos hoy
+                        </span>
+                      )}
+                   </div>
+                   <div className="relative z-10">
+                      <h3 className="text-4xl font-black text-slate-800 tracking-tighter">{logsRecientes.length}</h3>
+                      <p className="text-xs text-slate-400 font-bold uppercase mt-1">Movimientos Recientes</p>
+                      <span className="text-[10px] font-bold text-purple-600 mt-2 hover:underline block">Ver historial →</span>
+                   </div>
+                </div>
+              )}
+
+              {/* 4. PRÓXIMAS CLASES (VISIBLE PARA TODOS) */}
+              {/* Nota: Si es trainer, ocupa ancho completo si no hay stats/logs */}
+              <div className={`md:col-span-2 bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm ${userRole === 'trainer' ? 'md:col-span-2' : ''}`}>
+                 <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><FaClock className="text-blue-500"/> Próximos Entrenamientos</h3>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Agenda Cercana</span>
+                 </div>
+                 <div className="space-y-3">
+                    {statsDashboard.proximosCursos.length > 0 ? (
+                       statsDashboard.proximosCursos.map((curso:any) => (
+                          <div key={curso.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                             <div className="bg-white p-3 rounded-xl text-center shadow-sm min-w-[70px]">
+                                <span className="block text-[10px] font-black text-blue-600 uppercase">{new Date(curso.fecha).toLocaleDateString('es-ES', {month:'short'})}</span>
+                                <span className="block text-xl font-black text-slate-800 leading-none">{new Date(curso.fecha).getDate()+1}</span>
+                             </div>
+                             <div>
+                                <h4 className="font-bold text-slate-700 text-sm">{curso.curso}</h4>
+                                <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
+                                   <FaClock size={10}/> {curso.hora} 
+                                   <span className="w-1 h-1 bg-slate-300 rounded-full"></span> 
+                                   {curso.intensidad_horaria}
+                                </p>
+                             </div>
+                          </div>
+                       ))
+                    ) : (
+                       <p className="text-sm text-slate-400 italic">No hay cursos programados para los próximos días.</p>
+                    )}
+                 </div>
+              </div>
+
+              {/* 5. ACCESO DIRECTO SOLICITUDES (OCULTO PARA TRAINERS) */}
+              {userRole !== 'trainer' && (
+                <div className="md:col-span-2 bg-gradient-to-br from-emerald-50 to-white rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm flex items-center justify-between">
+                   <div>
+                      <div className="flex items-center gap-2 mb-2">
+                         <span className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><FaClipboardList size={14}/></span>
+                         <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest">Solicitudes Web</span>
+                      </div>
+                      <h3 className="text-4xl font-black text-slate-800">{statsDashboard.solicitudesPendientes}</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-1">Personas esperando respuesta</p>
+                   </div>
+                   <button onClick={() => setActiveTab('solicitudes')} className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition">
+                      Gestionar Ahora
+                   </button>
+                </div>
+              )}
+
+            </div>
+          )}
+          {/* --- FIN DASHBOARD BENTO GRID --- */}
           {/* SOLICITUDES */}
           {activeTab === "solicitudes" && (
             <div className="grid gap-6 animate-in fade-in">
@@ -1313,7 +1444,7 @@ if (loading) return (
 {activeTab === "listados" && (
   <div className="space-y-6 animate-in fade-in">
     
-    {/* --- MODAL RÁPIDO DE DETALLES DEL ESTUDIANTE (MODIFICADO CON CERTIFICACIÓN) --- */}
+    {/* --- MODAL RÁPIDO DE DETALLES DEL ESTUDIANTE --- */}
     {estudianteSeleccionado && (
       <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
         <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
@@ -1338,8 +1469,11 @@ if (loading) return (
               <span className="text-slate-700 font-mono font-bold">{estudianteSeleccionado.cedula}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400 font-bold uppercase">Teléfono:</span>
-              <span className="text-slate-700 font-bold">{estudianteSeleccionado.telefono || 'No registra'}</span>
+              <span className="text-slate-400 font-bold uppercase">Pago:</span>
+              {/* Mostramos alerta visual si debe dinero */}
+              <span className={`font-bold ${estudianteSeleccionado.estado_pago === 'Pendiente' ? 'text-red-500' : 'text-emerald-600'}`}>
+                {estudianteSeleccionado.estado_pago || 'Pendiente'}
+              </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400 font-bold uppercase">Estado Aptitud:</span>
@@ -1351,36 +1485,66 @@ if (loading) return (
           
           {/* --- ZONA DE ACCIONES DE CERTIFICACIÓN --- */}
           <div className="grid gap-3">
+            
             {estudianteSeleccionado.certificado_generado ? (
-              // CASO 1: YA TIENE CERTIFICADO -> MOSTRAR DESCARGA
-              <button 
-                onClick={() => {
-                   const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
-                   if(bloque) generarPDFCertificado(estudianteSeleccionado, bloque);
-                   else toast.error("No se encontraron datos de la agenda");
-                }}
-                className="w-full py-3 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-black text-center flex items-center justify-center gap-2 hover:bg-emerald-200 transition-all uppercase text-xs tracking-widest"
-              >
-                <FaCheckCircle/> Descargar Certificado
-              </button>
+              // =========================================================
+              // CASO 1: YA TIENE CERTIFICADO (Descargar o Revocar)
+              // =========================================================
+              <>
+                {/* Botón Descargar PDF */}
+                <button 
+                  onClick={() => {
+                     const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
+                     if(bloque) generarPDFCertificado(estudianteSeleccionado, bloque);
+                     else toast.error("No se encontraron datos de la agenda");
+                  }}
+                  className="w-full py-3 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-black text-center flex items-center justify-center gap-2 hover:bg-emerald-200 transition-all uppercase text-xs tracking-widest"
+                >
+                  <FaCheckCircle/> Descargar Certificado
+                </button>
+
+                {/* Botón REVOCAR (Nuevo) */}
+                <button 
+                   onClick={async () => {
+                      if(!confirm("⚠️ ¿Estás seguro de ANULAR este certificado?\n\nEl código QR dejará de funcionar inmediatamente.")) return;
+                      
+                      const tId = toast.loading("Revocando certificado...");
+                      try {
+                          // Llamamos a la nueva función de anular
+                          const estRevocado = await revocarCertificacion(estudianteSeleccionado.id);
+                          
+                          // Actualizamos estado local y global
+                          setEstudianteSeleccionado(estRevocado);
+                          fetchData(); 
+                          
+                          toast.success("Certificado anulado correctamente", { id: tId });
+                      } catch (err: any) {
+                          toast.error(err.message, { id: tId });
+                      }
+                   }}
+                   className="w-full py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl font-bold text-center flex items-center justify-center gap-2 hover:bg-red-100 transition-all uppercase text-[10px] tracking-widest"
+                >
+                   <FaTrashAlt/> Anular Certificado
+                </button>
+              </>
             ) : (
-              // CASO 2: NO TIENE CERTIFICADO -> BOTÓN CERTIFICAR
+              // =========================================================
+              // CASO 2: NO TIENE CERTIFICADO (Botón Certificar)
+              // =========================================================
               <button 
                 onClick={async () => {
-                   if(estudianteSeleccionado.resultado_final !== 'APTO') return toast.error("El estudiante debe ser APTO");
-                   
                    if(confirm(`¿Confirmas la certificación de ${estudianteSeleccionado.nombre}?`)) {
-                      const tId = toast.loading("Generando y firmando...");
+                      const tId = toast.loading("Validando requisitos...");
                       try {
                         const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
                         if(!bloque) throw new Error("Agenda no encontrada");
 
-                        // 1. Guardar en BD
+                        // 1. Intentar registrar (Aquí saltarán los errores de Pago o Médico)
                         const estActualizado = await registrarCertificacion(estudianteSeleccionado, bloque);
                         
-                        // 2. Actualizar la vista del modal al instante
+                        // 2. Si pasa, actualizamos la vista
                         setEstudianteSeleccionado(estActualizado);
-                        fetchData(); // Refrescar la lista de atrás
+                        fetchData(); 
                         
                         toast.success("¡Certificado Generado!", { id: tId });
 
@@ -1389,11 +1553,13 @@ if (loading) return (
                            await generarPDFCertificado(estActualizado, bloque);
                         }
                       } catch (err: any) {
-                        toast.error(err.message, { id: tId });
+                        // AQUÍ SE MUESTRA EL ERROR ROJO (Si debe plata o no es apto)
+                        toast.error(err.message, { id: tId, duration: 4000 });
                       }
                    }
                 }}
-                disabled={estudianteSeleccionado.resultado_final !== 'APTO'}
+                // Deshabilitamos visualmente si sabemos que no es apto, pero la validación real está en el onClick
+                disabled={estudianteSeleccionado.resultado_final !== 'APTO'} 
                 className={`w-full py-3 rounded-xl font-black text-center flex items-center justify-center gap-2 transition-all uppercase text-xs tracking-widest shadow-md ${
                   estudianteSeleccionado.resultado_final === 'APTO' 
                     ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02]' 
@@ -1404,7 +1570,7 @@ if (loading) return (
               </button>
             )}
 
-            {/* Botón WhatsApp (Mantenido) */}
+            {/* Botón WhatsApp */}
             <a 
               href={`https://wa.me/57${estudianteSeleccionado.telefono}`} 
               target="_blank"
@@ -1432,7 +1598,7 @@ if (loading) return (
       />
     </div>
 
-    {/* TARJETAS DE CLASES */}
+    {/* TARJETAS DE CLASES (Mantenido igual) */}
     <div className="grid md:grid-cols-2 gap-6">
       {agendaBD.filter(a => a.fecha === fechaSeleccionada).map(bloque => {
         const inscritos = [

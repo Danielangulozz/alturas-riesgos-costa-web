@@ -125,11 +125,11 @@ function ContenidoSubida() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 py-12 md:py-20 font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-2 py-2 md:py-12 font-sans">
       <Toaster position="top-center" reverseOrder={false} />
       
       {/* CARD PRINCIPAL */}
-      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+      <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
         
         {/* HEADER */}
         <div className="bg-[#0F172A] p-8 md:p-12 text-center relative overflow-hidden">
@@ -144,11 +144,11 @@ function ContenidoSubida() {
           </div>
         </div>
 
-        <div className="p-6 md:p-10">
+        <div className="p-200 md:p-0">
           
           {/* ESTADO 1: BUSCADOR */}
           {!datosUsuario ? (
-            <div className="flex flex-col items-center justify-center py-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex flex-col items-center justify-center py-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="bg-blue-50 p-4 rounded-full text-blue-600 mb-2">
                 <FaSearch size={30} />
               </div>
@@ -177,7 +177,7 @@ function ContenidoSubida() {
                 </button>
               </form>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-8 bg-slate-50 px-4 py-2 rounded-full">
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-4 bg-slate-50 px-4 rounded-full">
                 <FaLock /> Tus datos viajan encriptados y seguros.
               </div>
             </div>

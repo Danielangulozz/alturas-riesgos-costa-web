@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react"; // 1. IMPORTAR SUSPENSE
+import React, { useState, useEffect, Suspense } from "react"; 
 import { useSearchParams } from "next/navigation"; 
 import { supabase } from "@/lib/supabase"; 
 import { generarPDFCertificado } from "@/lib/certificadoLogic"; 
-import { FaSearch, FaDownload, FaCheckCircle, FaTimesCircle, FaSpinner, FaIdCard, FaCalendarCheck } from "react-icons/fa";
+import { 
+  FaSearch, FaDownload, FaCheckCircle, FaTimesCircle, FaSpinner, 
+  FaIdCard, FaCalendarCheck, FaClock, FaExclamationTriangle, FaWhatsapp, FaEnvelope 
+} from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 
-// 2. CAMBIAMOS EL NOMBRE DE TU FUNCIÓN ORIGINAL A "SearchContent" O ALGO INTERNO
 function SearchContent() {
   const searchParams = useSearchParams();
   
@@ -16,9 +18,10 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
   const [bloqueAgenda, setBloqueAgenda] = useState<any>(null); 
+  const [horasCurso, setHorasCurso] = useState("40 horas"); // Nuevo estado para las horas
   const [error, setError] = useState("");
 
-  // EFECTO: Detectar QR
+  // EFECTO: Detectar QR en la URL
   useEffect(() => {
     const q = searchParams.get("q");
     if (q) {
@@ -36,17 +39,18 @@ function SearchContent() {
     setError("");
     setResultado(null);
     setBloqueAgenda(null);
+    setHorasCurso("Calculando...");
 
     try {
-      // A. Buscamos primero por CÓDIGO ÚNICO
-      let { data: cert, error } = await supabase
+      // 1. Buscamos el certificado
+      let { data: cert } = await supabase
         .from('preinscripciones')
         .select(`*, agenda(*)`) 
         .eq('certificado_codigo', valor)
         .eq('certificado_generado', true)
         .single();
 
-      // B. Si no encuentra por código, buscamos por CÉDULA
+      // 2. Si no encuentra por código, buscamos por CÉDULA
       if (!cert) {
         const { data: certCedula } = await supabase
           .from('preinscripciones')
@@ -61,24 +65,45 @@ function SearchContent() {
       }
 
       if (cert) {
+        // --- LÓGICA DE HORAS (Igual que en el PDF) ---
+        // Buscamos la duración real en la configuración
+        let horasReales = "40 horas";
+        
+        const { data: config } = await supabase
+            .from('configuracion_cursos')
+            .select('horas_duracion')
+            .eq('nombre_curso', cert.curso)
+            .single();
+
+        if (config && config.horas_duracion) {
+            horasReales = config.horas_duracion;
+        } else if (cert.agenda && cert.agenda.intensidad_horaria) {
+            horasReales = cert.agenda.intensidad_horaria;
+        }
+
+        setHorasCurso(horasReales);
         setResultado(cert);
+
+        // Preparamos datos para el botón de descarga
         if (cert.agenda) {
             setBloqueAgenda(cert.agenda);
         } else {
             setBloqueAgenda({ 
                 fecha: cert.certificado_fecha_emision, 
                 fecha_fin: cert.certificado_fecha_emision, 
-                intensidad_horaria: "40 horas" 
+                intensidad_horaria: horasReales 
             });
         }
-        toast.success("Certificado Encontrado");
+        toast.success("Certificado Auténtico");
+
       } else {
-        setError("No se encontró ningún certificado vigente con esos datos.");
+        // MENSAJE DE SEGURIDAD
+        setError("ADVERTENCIA DE SEGURIDAD: El código o documento consultado NO existe en nuestra base de datos oficial. Podría tratarse de un documento fraudulento.");
       }
 
     } catch (err) {
       console.error(err);
-      setError("Ocurrió un error al buscar. Intente nuevamente.");
+      setError("Ocurrió un error de conexión. Intente nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -87,7 +112,7 @@ function SearchContent() {
   // FUNCIÓN DE DESCARGA
   const descargarCopia = async () => {
     if (!resultado || !bloqueAgenda) return;
-    const t = toast.loading("Generando PDF...");
+    const t = toast.loading("Generando PDF original...");
     try {
         await generarPDFCertificado(resultado, bloqueAgenda);
         toast.dismiss(t);
@@ -118,7 +143,7 @@ function SearchContent() {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="Cédula de ciudadanía o Código..."
+                        placeholder="Código de verificación o Cédula..."
                         className="
                             w-full pl-11 pr-4 py-4 rounded-xl
                             bg-slate-50 border border-slate-200
@@ -159,7 +184,7 @@ function SearchContent() {
                             <FaCheckCircle size={24}/>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Certificado Auténtico</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Estado: Vigente</p>
                             <h2 className="text-xl font-black text-slate-800 leading-none">{resultado.nombre}</h2>
                         </div>
                     </div>
@@ -173,24 +198,36 @@ function SearchContent() {
                             </p>
                         </div>
 
-                        {/* FECHA EMISIÓN */}
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Fecha de Emisión</span>
-                            <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                <FaCalendarCheck className="text-emerald-500"/>
-                                {resultado.certificado_fecha_emision}
-                            </span>
+                        {/* GRID DE DETALLES (AQUÍ ESTÁN LAS HORAS) */}
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Fecha */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Fecha Emisión</p>
+                                <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <FaCalendarCheck className="text-emerald-500"/>
+                                    {resultado.certificado_fecha_emision}
+                                </p>
+                            </div>
+                            
+                            {/* Horas (Nuevo) */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Intensidad</p>
+                                <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <FaClock className="text-blue-500"/>
+                                    {horasCurso}
+                                </p>
+                            </div>
                         </div>
 
                         {/* CÓDIGO DE VERIFICACIÓN */}
                         <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Código Verificación</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Código Único</span>
                             <span className="font-mono text-xs font-bold text-slate-800">{resultado.certificado_codigo}</span>
                         </div>
 
                         <button 
                             onClick={descargarCopia}
-                            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-blue-900 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-blue-900 transition-colors shadow-lg shadow-slate-900/20"
                         >
                             <FaDownload/> Descargar PDF Original
                         </button>
@@ -199,14 +236,37 @@ function SearchContent() {
             </div>
         )}
 
-        {/* RESULTADO: ERROR */}
+{/* RESULTADO: ERROR DE SEGURIDAD */}
         {error && (
-             <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                 <div className="bg-white border-l-4 border-red-500 rounded-xl p-6 shadow-lg shadow-red-100/50 flex items-start gap-4">
-                    <FaTimesCircle className="text-red-500 text-xl mt-0.5"/>
-                    <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase">Certificado No Encontrado</h3>
-                        <p className="text-xs text-slate-500 mt-1">{error}</p>
+             <div className="mt-8 animate-in shake duration-300">
+                 <div className="bg-red-50 border-l-4 border-red-600 rounded-r-xl p-6 shadow-xl shadow-red-100/50 flex flex-col md:flex-row items-start gap-4">
+                    <div className="bg-red-100 p-3 rounded-full text-red-600 shrink-0">
+                        <FaExclamationTriangle size={24}/>
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-sm font-black text-red-700 uppercase mb-1">Documento No Válido</h3>
+                        <p className="text-xs font-medium text-red-600/90 leading-relaxed">
+                            {error}
+                        </p>
+                        
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            {/* Botón Correo */}
+                            <a 
+                                href={`mailto:admin@alturasyriesgos.com?subject=Error Verificación Certificado&body=Hola, intenté verificar el código/cédula: ${query} y me sale error.`}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-700 rounded-lg text-[10px] font-black uppercase tracking-wide hover:bg-red-50 transition-colors"
+                            >
+                                <FaEnvelope size={14}/> Reportar por Correo
+                            </a>
+
+                            {/* Botón WhatsApp */}
+                            <a 
+                                href={`https://wa.me/573148475070?text=Hola, tengo un problema verificando el certificado con código o cédula: ${query}`}
+                                target="_blank"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wide hover:bg-red-700 transition-colors shadow-sm"
+                            >
+                                <FaWhatsapp size={14}/> Contactar Soporte
+                            </a>
+                        </div>
                     </div>
                  </div>
              </div>
@@ -221,7 +281,7 @@ function SearchContent() {
   );
 }
 
-// 3. EXPORTAMOS LA PÁGINA PRINCIPAL QUE ENVUELVE TODO EN SUSPENSE
+// 3. EXPORTAMOS LA PÁGINA PRINCIPAL
 export default function CertificadosPage() {
   return (
     <section className="relative min-h-screen bg-[#F8FAFC] px-6 py-20 flex flex-col items-center justify-center">
@@ -230,7 +290,6 @@ export default function CertificadosPage() {
       {/* Fondo sutil */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
 
-      {/* AQUÍ ESTÁ LA SOLUCIÓN: Suspense Boundary */}
       <Suspense fallback={
         <div className="flex flex-col items-center justify-center min-h-[400px]">
            <FaSpinner className="animate-spin text-4xl text-blue-600 mb-4"/>

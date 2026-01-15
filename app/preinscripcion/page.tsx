@@ -196,7 +196,6 @@ export default function FormPreInscripcion() {
     <div className="mt-32 mb-20 max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
       <div className="bg-[#0F172A] p-8 text-center text-white">
         <h2 className="text-3xl font-black uppercase">Pre-Inscripción</h2>
-        <p className="text-blue-400 text-xs font-bold uppercase">Registro Oficial</p>
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); setConfirmar(true); }} className="p-8 space-y-6 bg-white">
