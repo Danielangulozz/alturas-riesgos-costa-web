@@ -61,22 +61,26 @@ export default function AdminLogin() {
         
         <div className="relative bg-slate-900/60 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 md:p-10 border border-white/10">
           
-          <div className="text-center mb-10">
-            {/* Icono flotante con brillo */}
-            <div className="relative w-20 h-20 mx-auto mb-6 group">
-                <div className="absolute inset-0 bg-amber-400 rounded-3xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 w-full h-full rounded-3xl flex items-center justify-center rotate-3 shadow-2xl relative z-10">
-                    <FaShieldAlt className="text-[#FFD700] text-3xl drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]" />
-                </div>
-            </div>
+          <div className="flex items-center justify-center gap-4 mb-10">
+            {/* Logo */}
+            <img 
+              src="/logo-blanco.webp" 
+              alt="Logo" 
+              className="w-16 h-16 opacity-70"
+            />
             
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase drop-shadow-lg">
-              Panel Admin
-            </h1>
-            <p className="text-blue-400/80 text-[10px] font-black uppercase tracking-[0.3em] mt-2">
-              AYR Costa
-            </p>
+            {/* Icono flotante con brillo */}
+            <div className="relative w-16 h-16 group">
+              <div className="absolute inset-0 bg-amber-400 rounded-3xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 w-full h-full rounded-3xl flex items-center justify-center rotate-3 shadow-2xl relative z-10">
+                <FaShieldAlt className="text-[#FFD700] text-3xl drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]" />
+              </div>
+            </div>
           </div>
+          
+          <h1 className="text-2xl font-black text-white tracking-tighter uppercase drop-shadow-lg text-center mb-6">
+            Panel Admin
+          </h1>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
@@ -129,7 +133,7 @@ export default function AdminLogin() {
           <button
               disabled={loading || !token} // No deja entrar si no hay captcha
               type="submit"
-              className="w-full py-5 bg-gradient-to-r from-amber-500 to-yellow-600 ... disabled:grayscale disabled:opacity-30"
+              className="w-full  py-2 bg-gradient-to-r from-amber-500 to-yellow-600 border border-amber-400/50 rounded-xl ... disabled:grayscale disabled:opacity-30"
             >
               <span className="relative z-10">
                 {!token ? "Esperando Verificación..." : loading ? "Accediendo..." : "Ingresar al Sistema"}
@@ -137,9 +141,9 @@ export default function AdminLogin() {
             </button>
           </form>
 
-          <div className="mt-8 text-center border-t border-white/5 pt-6">
+          <div className="mt-2 text-center border-t border-white/5 pt-2">
             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest hover:text-slate-400 transition-colors cursor-default">
-              &copy; 2026 Sistema Integral AYR
+              &copy; 2026 Alturas y Riesgos de la Costa S.A.S.
             </p>
           </div>
         </div>
