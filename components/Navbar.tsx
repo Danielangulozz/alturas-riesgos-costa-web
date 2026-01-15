@@ -105,30 +105,37 @@ export default function Navbar() {
           <FaTimes size={32} />
         </button>
 
-        {/* LINKS MÓVIL */}
-        <div className="flex flex-col items-center justify-center h-full gap-8 relative z-10">
-          <ul className="flex flex-col gap-6 text-center">
-            {['Inicio', 'Nosotros', 'Cursos', 'Certificados'].map((item) => (
-              <li key={item}>
-                <Link
-                  href={item === 'Inicio' ? '/' : `/${item.toLowerCase()}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="text-4xl font-black text-white uppercase tracking-tighter hover:text-[#FFD700] transition-colors"
-                >
-                  {item}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          
-          <Link
-            href="/certificados"
-            onClick={() => setMenuOpen(false)}
-            className="mt-4 px-10 py-4 rounded-full bg-[#FFD700] text-[#0F172A] text-lg font-black uppercase tracking-widest shadow-xl"
-          >
-            Validar Certificado
-          </Link>
-        </div>
+{/* LINKS MÓVIL */}
+<div className="flex flex-col items-center justify-center h-full gap-8 relative z-10">
+  <ul className="flex flex-col gap-6 text-center">
+    {[
+      { label: 'Inicio', path: '/' },
+      { label: 'Nosotros', path: '/nosotros' },
+      { label: 'Cursos', path: '/cursos' },
+      { label: 'Certificados', path: '/certificados' },
+      { label: 'Subir Documentos', path: '/registro' } // El label que querías cambiar
+    ].map((item) => (
+      <li key={item.label}>
+        <Link
+          href={item.path}
+          onClick={() => setMenuOpen(false)}
+          className="text-4xl font-black text-white uppercase tracking-tighter hover:text-[#FFD700] transition-colors"
+        >
+          {item.label}
+        </Link>
+      </li>
+    ))}
+  </ul>
+
+  {/* BOTÓN DE PRE-INSCRIPCIÓN (El que resalta) */}
+  <Link
+    href="/preinscripcion"
+    onClick={() => setMenuOpen(false)}
+    className="mt-4 px-10 py-4 rounded-full bg-[#FFD700] text-[#0F172A] text-lg font-black uppercase tracking-widest shadow-xl active:scale-95 transition-transform"
+  >
+    Pre-inscripción
+  </Link>
+</div>
       </div>
     </>
   );

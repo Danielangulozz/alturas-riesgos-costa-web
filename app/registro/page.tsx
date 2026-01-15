@@ -42,24 +42,40 @@ function ContenidoSubida() {
     setLoading(false);
   };
 
-  const buscarPorCedula = async (e?: React.FormEvent) => {
-  if(e) e.preventDefault();
-  if (!cedulaBusqueda) return toast.error("Escribe tu cédula");
+const buscarPorCedula = async (e?: React.FormEvent) => {
+  if (e) e.preventDefault();
+  
+  // Limpiamos espacios y cualquier caracter raro
+  const cedulaLimpia = cedulaBusqueda.trim();
+
+  if (!cedulaLimpia) return toast.error("Escribe tu cédula");
   
   setLoading(true);
-  const { data, error } = await supabase.from("preinscripciones")
-    .select("*")
-    .eq("cedula", cedulaBusqueda)
-    .single();
+  
+  try {
+    // CAMBIO CLAVE: .ilike en lugar de .eq y quitamos .single() para manejo manual
+    // Buscamos coincidencia exacta pero flexible en formato
+    const { data, error } = await supabase
+      .from("preinscripciones")
+      .select("*")
+      .ilike("cedula", cedulaLimpia) 
+      .maybeSingle(); // maybeSingle es más estable que single() para evitar errores 406
 
-  if (error || !data) {
-    toast.error("No encontramos tu registro. ¿Ya te inscribiste?");
-    setDatosUsuario(null);
-  } else {
-    setDatosUsuario(data);
-    toast.success(`¡Hola, ${data.nombre}!`);
+    if (error) {
+      console.error("Error Supabase:", error);
+      toast.error("Error de conexión");
+    } else if (!data) {
+      toast.error("No encontrado. Verifica el número.");
+      setDatosUsuario(null);
+    } else {
+      setDatosUsuario(data);
+      toast.success(`¡Hola, ${data.nombre}!`);
+    }
+  } catch (err) {
+    toast.error("Error inesperado");
+  } finally {
+    setLoading(false);
   }
-  setLoading(false);
 };
 
   const obtenerDocumentosRequeridos = (nombreCurso: string) => {
@@ -162,21 +178,26 @@ function ContenidoSubida() {
       
       {/* Formulario Responsive: En móvil columna, en desktop fila */}
       <form onSubmit={buscarPorCedula} className="w-full max-w-md flex flex-col gap-3 px-2">
-        <input 
-          type="number" 
-          placeholder="Ej: 100200300" 
-          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all font-bold text-slate-700 text-center md:text-left" 
-          value={cedulaBusqueda} 
-          onChange={(e) => setCedulaBusqueda(e.target.value)} 
-        />
-        <button 
-          type="submit"
-          disabled={loading} 
-          className="w-full bg-[#1E3A8A] text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg"
-        >
-          {loading ? <FaSpinner className="animate-spin" /> : "Iniciar Gestión"}
-        </button>
-      </form>
+<input 
+  type="text" 
+  inputMode="numeric"
+  autoComplete="off"
+  autoCorrect="off"
+  spellCheck="false"
+  placeholder="Ingresa tu cédula" 
+  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-slate-700 text-lg font-bold" 
+  value={cedulaBusqueda} 
+  onChange={(e) => setCedulaBusqueda(e.target.value.replace(/\D/g, ""))} // Solo deja escribir números
+/>
+  <button 
+    type="button" // <--- Cambiamos de 'submit' a 'button'
+    onClick={() => buscarPorCedula()} // <--- Disparamos la función directamente
+    disabled={loading} 
+    className="w-full bg-[#1E3A8A] text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+  >
+    {loading ? <FaSpinner className="animate-spin" /> : "Iniciar Gestión"}
+  </button>
+</form>
     </div>
   ) : (
             
