@@ -144,65 +144,59 @@ function ContenidoSubida() {
           </div>
         </div>
 
-        <div className="p-200 md:p-0">
-          
-          {/* ESTADO 1: BUSCADOR */}
-          {!datosUsuario ? (
-            <div className="flex flex-col items-center justify-center py-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="bg-blue-50 p-4 rounded-full text-blue-600 mb-2">
-                <FaSearch size={30} />
-              </div>
-              
-              <div className="text-center space-y-2 max-w-md">
-                <h3 className="text-xl font-bold text-slate-800">Bienvenido al Portal</h3>
-                <p className="text-slate-500 text-sm">
-                  Para iniciar, ingresa tu número de documento de identidad para cargar los requisitos específicos de tu curso.
-                </p>
-              </div>
-              
-              <form onSubmit={buscarPorCedula} className="w-full max-w-md flex flex-col sm:flex-row gap-3">
-                <input 
-                  type="number" 
-                  placeholder="Ej: 100200300" 
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all font-bold text-slate-700 placeholder:font-normal" 
-                  value={cedulaBusqueda} 
-                  onChange={(e) => setCedulaBusqueda(e.target.value)} 
-                />
-                <button 
-                  type="submit"
-                  disabled={loading} 
-                  className="bg-[#1E3A8A] text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-900 transition-transform active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-                >
-                  {loading ? <FaSpinner className="animate-spin" /> : "Buscar"}
-                </button>
-              </form>
+        <div className="p-6 md:p-12"> {/* Reemplaza el p-200 por este padding balanceado */}
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-4 bg-slate-50 px-4 rounded-full">
-                <FaLock /> Tus datos viajan encriptados y seguros.
-              </div>
-            </div>
-          ) : (
+ {/* ESTADO 1: BUSCADOR */}
+  {!datosUsuario ? (
+    <div className="flex flex-col items-center justify-center py-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-blue-50 p-4 rounded-full text-blue-600 mb-2">
+        <FaSearch size={30} />
+      </div>
+      
+      <div className="text-center space-y-2 max-w-md">
+        <h3 className="text-xl font-bold text-slate-800">Bienvenido al Portal</h3>
+        <p className="text-slate-500 text-sm px-4">
+          Ingresa tu número de documento para cargar los requisitos de tu curso.
+        </p>
+      </div>
+      
+      {/* Formulario Responsive: En móvil columna, en desktop fila */}
+      <form onSubmit={buscarPorCedula} className="w-full max-w-md flex flex-col gap-3 px-2">
+        <input 
+          type="number" 
+          placeholder="Ej: 100200300" 
+          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all font-bold text-slate-700 text-center md:text-left" 
+          value={cedulaBusqueda} 
+          onChange={(e) => setCedulaBusqueda(e.target.value)} 
+        />
+        <button 
+          type="submit"
+          disabled={loading} 
+          className="w-full bg-[#1E3A8A] text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+        >
+          {loading ? <FaSpinner className="animate-spin" /> : "Iniciar Gestión"}
+        </button>
+      </form>
+    </div>
+  ) : (
             
-            /* ESTADO 2: PANEL DE CARGA */
-            <div className="animate-in fade-in zoom-in duration-500">
-              
-              {/* Info del Usuario */}
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded">Postulante</span>
-                  <h2 className="text-2xl font-black text-slate-800 mt-2">{datosUsuario.nombre}</h2>
-                  <p className="text-sm font-medium text-slate-500 flex items-center gap-2 mt-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Curso: {datosUsuario.curso}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setDatosUsuario(null)} 
-                  className="text-xs font-bold text-slate-400 hover:text-red-500 underline transition-colors"
-                >
-                  Cerrar Sesión / Buscar otro
-                </button>
-              </div>
+                  /* ESTADO 2: PANEL DE CARGA */
+      <div className="animate-in fade-in zoom-in duration-500 p-4 md:p-10">
+        
+        {/* Info del Usuario: Centrado en móvil, Space-between en desktop */}
+        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 mb-8 flex flex-col items-center md:flex-row md:justify-between text-center md:text-left gap-4">
+          <div>
+            <span className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] bg-blue-100 px-2 py-1 rounded-md">Postulante Activo</span>
+            <h2 className="text-xl md:text-2xl font-black text-slate-800 mt-2 uppercase">{datosUsuario.nombre}</h2>
+            <p className="text-xs font-bold text-slate-500 flex items-center justify-center md:justify-start gap-2 mt-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              {datosUsuario.curso}
+            </p>
+          </div>
+          <button onClick={() => setDatosUsuario(null)} className="text-[10px] font-black text-red-400 uppercase tracking-widest border-b border-red-200 pb-1">
+            Cambiar Documento
+          </button>
+        </div>
 
               {/* Grid de Documentos */}
               <div className="grid md:grid-cols-2 gap-5">
@@ -301,8 +295,8 @@ function ContenidoSubida() {
         </div>
 
         {/* FOOTER - POLÍTICA DE DATOS */}
-        <div className="bg-slate-50 border-t border-slate-100 p-6 text-center">
-            <div className="flex flex-col items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+        <div className="bg-slate-50 border-t border-slate-100 p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
                 <FaShieldAlt className="text-slate-400" size={20}/>
                 <p className="text-[10px] text-slate-500 max-w-xl mx-auto leading-relaxed">
                     Al utilizar esta plataforma, autorizo de manera voluntaria, previa, explícita, informada e inequívoca a 
@@ -313,7 +307,6 @@ function ContenidoSubida() {
                 <p className="text-[10px] font-bold text-slate-400 mt-2">© {new Date().getFullYear()} AR Costa S.A.S - Todos los derechos reservados.</p>
             </div>
         </div>
-
       </div>
     </div>
   );
