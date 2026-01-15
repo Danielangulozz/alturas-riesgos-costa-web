@@ -892,7 +892,7 @@ if (loading) return (
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 text-center">
-          <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">© 2026 AR COSTA S.A.S</p>
+          <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">© 2026 Alturas y Riesgos de la Costa S.A.S</p>
         </div>
       </aside>
     </>
