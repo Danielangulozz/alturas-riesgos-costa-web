@@ -10,7 +10,7 @@ import {
   FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle, 
   FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaHistory, 
   FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock,
-  FaMapMarkerAlt, FaUser, FaTrashAlt, FaFire, FaChartLine, FaBell
+  FaMapMarkerAlt, FaUser, FaTrashAlt, FaFire, FaChartLine, FaBell, FaCloudUploadAlt
 } from "react-icons/fa";
 import { supabase } from "@/lib/supabase"; 
 import { useRouter } from "next/navigation";
@@ -72,6 +72,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Estado para que el botón de actualizar de vueltas
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // INFO USUARIO
   const [userEmail, setUserEmail] = useState<string | undefined>("");
@@ -93,6 +95,7 @@ export default function AdminDashboard() {
   const [logsRecientes, setLogsRecientes] = useState<any[]>([]);
   const [modalARL, setModalARL] = useState<{isOpen: boolean, item: any}>({isOpen: false, item: null});
   const [datosARL, setDatosARL] = useState({nombre: "", nit: ""});
+  const [notificacionesNuevas, setNotificacionesNuevas] = useState(0);
   
 
 
@@ -350,24 +353,136 @@ const generarReporte = (est: any) => {
 
 
   // --- CARGA DE DATOS ---
-  const fetchData = async () => {
-    // Tablas antiguas y nuevas
-    const { data: est } = await supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
-    const { data: sol } = await supabase.from('solicitudes').select('*').order('created_at', { ascending: false });
-    const { data: age } = await supabase.from('agenda').select('*').order('fecha', { ascending: true });
-    const { data: cat } = await supabase.from('configuracion_cursos').select('*');
-    const { data: pre } = await supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
-    const { data: logs } = await supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20);
-    const { data: perf } = await supabase.from('profiles').select('*');
+  // --- CARGA DE DATOS (MEJORADA) ---
+  const fetchData = async (esManual = false) => {
+    // Solo activamos el spinner del botón si fue manual
+    if (esManual) setIsRefreshing(true);
 
-    if (perf) setListaPerfiles(perf);
-    if (est) setEstudiantes(est);
-    if (sol) setSolicitudes(sol);
-    if (age) setAgendaBD(age);
-    if (cat) setCatalogoCursos(cat);
-    if (pre) setPreinscripciones(pre);
-    if (logs) setLogsRecientes(logs);
+    try {
+      // Tablas antiguas y nuevas
+      const { data: est } = await supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
+      const { data: sol } = await supabase.from('solicitudes').select('*').order('created_at', { ascending: false });
+      const { data: age } = await supabase.from('agenda').select('*').order('fecha', { ascending: true });
+      const { data: cat } = await supabase.from('configuracion_cursos').select('*');
+      const { data: pre } = await supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
+      const { data: logs } = await supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20);
+      const { data: perf } = await supabase.from('profiles').select('*');
+  
+      if (perf) setListaPerfiles(perf);
+      if (est) setEstudiantes(est);
+      if (sol) setSolicitudes(sol);
+      if (age) setAgendaBD(age);
+      if (cat) setCatalogoCursos(cat);
+      if (pre) setPreinscripciones(pre);
+      if (logs) setLogsRecientes(logs);
+
+      // Si fue manual, avisamos que terminó
+      if (esManual) toast.success("Base de datos sincronizada");
+
+    } catch (error) {
+      console.error(error);
+      if (esManual) toast.error("Error al refrescar");
+    } finally {
+      // Apagamos el spinner siempre
+      if (esManual) setIsRefreshing(false);
+    }
   };
+
+  // --- EFECTO REALTIME (AGREGAR ESTO) ---
+  // --- EFECTO REALTIME MEJORADO (SONIDO + ESTILO + NAVEGACIÓN) ---
+  useEffect(() => {
+    // 1. Definimos el sonido suave (Base64 para no depender de archivos externos)
+    // Es un "Pop" suave tipo notificación de Apple
+    const playNotificationSound = () => {
+      try {
+        const audio = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIQAykpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKS//OEAAABAAAAAgAAAAAA/84QAAABAAAAAgAAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//OEZAAAA4gAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA");
+        audio.volume = 0.5; // Volumen al 50% para no asustar
+        audio.play().catch(e => console.log("Audio bloqueado por navegador hasta interacción", e));
+      } catch (err) {
+        console.error("Error audio", err);
+      }
+    };
+
+    const manejarNotificacion = (payload: any, origen: string) => {
+      // 1. Sonido
+      playNotificationSound();
+
+      // 2. Contador Badge
+      setNotificacionesNuevas((prev) => prev + 1);
+      
+      // 3. Refrescar Datos
+      fetchData(); 
+
+      // 4. Datos del evento
+      const nombre = payload.new.nombre || "Nuevo Usuario";
+      const esSolicitud = origen === 'solicitud';
+      const titulo = esSolicitud ? "¡Nueva Solicitud Web!" : "Actualización de Archivos";
+      const subtitulo = esSolicitud ? "Quiere información de cursos" : "Ha cargado documentos";
+      const colorBorde = esSolicitud ? "border-emerald-500" : "border-blue-500";
+      const icono = esSolicitud ? <FaClipboardList size={20} className="text-emerald-600"/> : <FaCloudUploadAlt size={20} className="text-blue-600"/>;
+      const bgIcono = esSolicitud ? "bg-emerald-100" : "bg-blue-100";
+
+      // 5. Toast Personalizado (Diseño Limpio + Funcionalidad)
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} 
+          max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col ring-1 ring-black ring-opacity-5 border-l-4 ${colorBorde}`}
+        >
+          <div className="flex-1 w-0 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${bgIcono}`}>
+                  {icono}
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                  {titulo}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  <span className="font-bold">{nombre}</span> {subtitulo}
+                </p>
+              </div>
+              {/* Botón cerrar chiquito */}
+              <div className="ml-4 flex-shrink-0 flex">
+                <button onClick={() => toast.dismiss(t.id)} className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* BOTÓN DE ACCIÓN FUNCIONAL */}
+          <div className="flex border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+            <button 
+              onClick={() => {
+                // AQUÍ ESTÁ LA MAGIA: CAMBIAMOS EL TAB Y CERRAMOS EL TOAST
+                setActiveTab(esSolicitud ? 'solicitudes' : 'lista');
+                toast.dismiss(t.id);
+                // Opcional: Reseteamos el contador si queremos
+                if (!esSolicitud) setNotificacionesNuevas(0); 
+              }} 
+              className="w-full rounded-b-2xl p-3 flex items-center justify-center text-xs font-black text-blue-600 uppercase tracking-widest hover:bg-blue-100 transition-colors"
+            >
+              Ver Detalles Ahora
+            </button>
+          </div>
+        </div>
+      ), { duration: 6000, position: 'top-right' }); // Lo ponemos arriba a la derecha que molesta menos
+    };
+
+    const channel = supabase
+      .channel('tablero-admin-vivo')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'preinscripciones' }, (payload: any) => {
+           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') manejarNotificacion(payload, 'preinscripcion');
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, (payload: any) => {
+           if (payload.eventType === 'INSERT') manejarNotificacion(payload, 'solicitud');
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 useEffect(() => {
   const checkUser = async () => {
@@ -416,7 +531,7 @@ useEffect(() => {
   };
   
   checkUser();
-}, [router]); // Elimina cualquier otro useEffect que tenga registrarLog("INGRESO")
+}, [router]);
 
   // --- LÓGICA DE NEGOCIO ---
   const obtenerPrecioBase = (nombreCurso: string) => {
@@ -469,7 +584,7 @@ useEffect(() => {
       }
     });
 
-    const msg = `Hola *${nombreCliente}*, un gusto saludarte de *AR Costa*.\n\n` +
+    const msg = `Hola *${nombreCliente}*, un gusto saludarte de *Alturas y riesgos de la costa S.A.S*.\n\n` +
       `Adjuntamos la propuesta de capacitación:\n` +
       `${detallesCursosYFechas}\n` +
       `VALOR TOTAL: *$${pFinal}*\n\n` +
@@ -624,7 +739,8 @@ const ejecutarCambioEstado = async (item: any, docId: string, docLabel: string, 
   };
 
   const tabla = item.origen; 
-  const { error } = await supabase.from(tabla).update({ doc_verification: newVerificationData }).eq('id', item.id);
+  const { error } = await supabase.from(tabla).update({ doc_verification: newVerificationData })
+  .eq('id', item.id);
 
   if (!error) {
     if(newState === 'approved') toast.success(`✅ ${docLabel} Aprobado`);
@@ -649,10 +765,12 @@ const ejecutarCambioEstado = async (item: any, docId: string, docLabel: string, 
       { id: 'url_eps', label: 'EPS', oldId: 'url_seguridad_social', icon: <FaShieldVirus/> }
     ];
     if (c.includes("reentrenamiento") || c.includes("coordinador") || c.includes("jefe")) {
-      reqs.push({ id: 'url_cert_altura', label: 'Cert. Altura', oldId: 'url_cert_altura', icon: <FaFilePdf/> });
+      reqs.push({ id: 'url_cert_altura', label: 'Cert. Altura', oldId: 'url_cert_altura', icon: 
+      <FaFilePdf/> });
     }
     if (c.includes("coordinador") || c.includes("jefe")) {
-      reqs.push({ id: 'url_cert_sst', label: 'SST 20h', oldId: 'url_cert_sst', icon: <FaFilePdf/> });
+      reqs.push({ id: 'url_cert_sst', label: 'SST 20h', oldId: 'url_cert_sst', icon: 
+      <FaFilePdf/> });
     }
     return reqs;
   };
@@ -683,7 +801,8 @@ const registrarEstudiante = async (e: React.FormEvent) => {
     nit: formData.nit || "N/A",
     estado_pago: formData.estadoPago,
     resultado_final: "Pendiente",
-    precio_pactado: formData.precio_pactado || (obtenerPrecioBase(cursoFinal) - (obtenerPrecioBase(cursoFinal) * (descuentoAplicado/100))).toLocaleString('es-CO')
+    precio_pactado: formData.precio_pactado || (obtenerPrecioBase(cursoFinal) - 
+    (obtenerPrecioBase(cursoFinal) * (descuentoAplicado/100))).toLocaleString('es-CO')
   }]);
   
   if (error) {
@@ -702,7 +821,8 @@ const registrarEstudiante = async (e: React.FormEvent) => {
 };
 
   const actualizarPrecioMaestro = async (id: string, nuevoPrecio: string) => {
-    const { error } = await supabase.from('configuracion_cursos').update({ precio_base: nuevoPrecio }).eq('id', id);
+    const { error } = await supabase.from('configuracion_cursos')
+    .update({ precio_base: nuevoPrecio }).eq('id', id);
     if (!error) { toast.success("Precio actualizado"); fetchData(); }
   };
 
@@ -876,18 +996,33 @@ if (loading) return (
           ]
           .filter(item => item.roles.includes(userRole)) 
           .map((item) => (
-            <button 
-              key={item.id} 
-              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} 
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-all ${
-                activeTab === item.id 
-                ? 'bg-blue-600 text-white shadow-lg' 
-                : 'hover:bg-white/5 text-slate-400'
-              }`}
-            >
-              <span className={activeTab === item.id ? 'text-[#FFD700]' : ''}>{item.icon}</span> 
-              {item.label}
-            </button>
+
+            
+          <button 
+            key={item.id} 
+            onClick={() => { 
+              setActiveTab(item.id); 
+              setIsSidebarOpen(false); 
+              // Si entran a la base de datos, reiniciamos el contador a 0
+              if (item.id === 'lista') setNotificacionesNuevas(0); 
+            }} 
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-all ${
+              activeTab === item.id 
+              ? 'bg-blue-600 text-white shadow-lg' 
+              : 'hover:bg-white/5 text-slate-400'
+            }`}
+          >
+            <span className={activeTab === item.id ? 'text-[#FFD700]' : ''}>{item.icon}</span> 
+            <span className="flex-1 text-left">{item.label}</span>
+
+            {/* --- AGREGAR ESTO: BADGE ROJO --- */}
+            {item.id === 'lista' && notificacionesNuevas > 0 && (
+              <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-red-500/50 shadow-lg">
+                {notificacionesNuevas}
+              </span>
+            )}
+          </button>
+
           ))}
         </nav>
 
@@ -1120,7 +1255,20 @@ if (loading) return (
             <div className="space-y-4 animate-in fade-in">
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
                 <input type="text" placeholder="Buscar por nombre o cédula..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl outline-none" />
-                <button onClick={fetchData} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-600 flex items-center gap-2"><FaSync/> Actualizar</button>
+                <button 
+                onClick={() => fetchData(true)} // <-- IMPORTANTE: Pasar true
+                disabled={isRefreshing} // Evita doble clic
+                className={`
+                  px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm
+                  ${isRefreshing 
+                    ? 'bg-blue-100 text-blue-400 cursor-wait' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-white hover:text-blue-600 hover:shadow-md border border-transparent hover:border-blue-100'
+                  }
+                `}
+                 >
+              <FaSync className={isRefreshing ? "animate-spin" : ""} /> {/* Gira si carga */}
+              {isRefreshing ? "Sincronizando..." : " "}
+            </button>
               </div>
               
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
