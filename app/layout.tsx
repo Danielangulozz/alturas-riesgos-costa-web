@@ -87,8 +87,8 @@ export const metadata: Metadata = {
       { url: "/logo-blanco.webp", media: "(prefers-color-scheme: light)" },
       { url: "/logo-negro.webp", media: "(prefers-color-scheme: dark)" },
     ],
-    shortcut: "/icon-light.png",
-    apple: "/icon-light.png",
+    shortcut: "/logo-blanco.webp",
+    apple: "/logo-blanco.webp",
   },
 
   // GEO-TAGS (Súper importante para SEO Local)

@@ -22,7 +22,7 @@ export default function CursosPage() {
         "EMO (Examen Médico) con aptitud para alturas",
         "Certificado de afiliación a EPS"
       ],
-      imagen: "/img/curso-trabajador.jpg" // Asegúrate de poner una foto real aquí luego
+      imagen: "/trabajador.webp" // Asegúrate de poner una foto real aquí luego
     },
     {
       titulo: "Reentrenamiento",
@@ -39,7 +39,7 @@ export default function CursosPage() {
         "Certificado de afiliación a EPS",
         "Haber realizado el curso de Trabajador Autorizado previamente"
       ],
-      imagen: "/img/curso-reentrenamiento.jpg"
+      imagen: "/reentrenamiento.webp"
     },
     {
       titulo: "Coordinador de alturas",
@@ -58,7 +58,7 @@ export default function CursosPage() {
         "Certificado de afiliación a EPS",
         "Certificado 20h SST (Si no lo tiene, puede hacerlo con nosotros antes del curso)"
       ],
-      imagen: "/img/curso-coordinador.jpg"
+      imagen: "/coordinador.webp"
     },
     {
       titulo: "Jefes de área",
@@ -79,13 +79,13 @@ export default function CursosPage() {
         "Certificado curso primero auxilios (opcional pero recomendado)",
 
       ],
-      imagen: "/img/curso-jefe.jpg"
+      imagen: "/jefes.webp"
     },
   ];
 
   return (
     <section className="bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="max-w-7xl mt-12 mx-auto px-6 py-20">
         
         {/* HEADER */}
         <div className="text-center mb-16">
@@ -155,24 +155,30 @@ export default function CursosPage() {
           <div className="bg-white rounded-[32px] w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row animate-in zoom-in duration-300 max-h-[90vh] md:max-h-none overflow-y-auto md:overflow-visible">
             
             {/* COLUMNA IZQUIERDA: FOTO Y RESUMEN */}
-            <div className="md:w-2/5 bg-slate-100 relative min-h-[200px] md:min-h-full flex flex-col">
-                {/* Imagen de fondo (Placeholder o real) */}
-                <div className="absolute inset-0 bg-slate-300">
-                   {/* AQUÍ VA LA IMAGEN REAL <img src={cursoSeleccionado.imagen} ... /> */}
-                   <div className="w-full h-full flex items-center justify-center text-slate-400 text-6xl">
-                      {cursoSeleccionado.icono}
-                   </div>
-                   {/* Gradiente encima para que se lea el texto */}
-                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
-                </div>
+            <div className="md:w-2/5 relative min-h-[250px] md:min-h-full flex flex-col">
+              {/* Imagen de fondo */}
+              <div className="absolute inset-0">
+                <img 
+                  src={cursoSeleccionado.imagen} 
+                  alt={cursoSeleccionado.titulo}
+                  className="w-full h-full object-cover"
+                />
+                {/* Gradiente para asegurar legibilidad del texto blanco */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
+              </div>
 
-                <div className="relative z-10 mt-auto p-8 text-white">
-                    <span className="inline-block px-3 py-1 bg-blue-600 rounded-lg text-xs font-black uppercase tracking-widest mb-2 shadow-lg">
-                        Certificado Oficial
-                    </span>
-                    <h2 className="text-3xl font-black leading-none mb-2">{cursoSeleccionado.titulo}</h2>
-                    <p className="text-slate-300 text-sm font-medium">{cursoSeleccionado.horasTotal} de Intensidad</p>
-                </div>
+              {/* Contenido sobre la imagen */}
+              <div className="relative z-10 mt-auto p-8 text-white">
+                <span className="inline-block px-3 py-1 bg-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest mb-2 shadow-lg">
+                  Certificado Oficial
+                </span>
+                <h2 className="text-3xl font-black leading-tight mb-2 uppercase tracking-tighter">
+                  {cursoSeleccionado.titulo}
+                </h2>
+                <p className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                  <FaClock className="text-blue-400" /> {cursoSeleccionado.horasTotal} de Intensidad
+                </p>
+              </div>
             </div>
 
             {/* COLUMNA DERECHA: DETALLES */}

@@ -173,10 +173,10 @@ function ContenidoSubida() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans">
       <Toaster />
       
-      <div className="max-w-3xl w-full bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-200">
+      <div className="max-w-2xl mt-24 w-full bg-white rounded-[4rem] shadow-xl overflow-hidden border border-slate-200">
         
         {/* HEADER */}
-        <div className="bg-[#0F172A] p-6 md:p-10 text-center relative overflow-hidden">
+        <div className="bg-[#0F172A] p-8 max-w-3xl md:p-8 text-center relative overflow-hidden">
           <div className="relative z-10">
             <h1 className="text-xl md:text-3xl font-black text-white uppercase mb-1">
               Gestión Documental

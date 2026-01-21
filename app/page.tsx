@@ -14,10 +14,10 @@ import {
 
 export default function HomePage() {
   const academiaFotos = [
-    { title: "Pista de Entrenamiento", desc: "Estructuras certificadas para práctica real.", img: "/persona.jpg" },
-    { title: "Equipamiento Técnico", desc: "Arneses y conectores de última generación.", img: "/equipament.jpg" },
-    { title: "Aulas Teóricas", desc: "Espacios climatizados para formación técnica.", img: "/aula.jpg" },
-    { title: "Simulación de Rescate", desc: "Escenarios controlados de alta complejidad.", img: "/rescate.jpg" }
+    { title: "Pista de Entrenamiento", desc: "Estructuras certificadas para práctica real.", img: "/pic1.webp" },
+    { title: "Equipamiento Técnico", desc: "Arneses y conectores de última generación.", img: "/equipament.webp" },
+    { title: "Aulas Teóricas", desc: "Espacios climatizados para formación técnica.", img: "/aula.webp" },
+    { title: "Simulación de Rescate", desc: "Escenarios controlados de alta complejidad.", img: "/rescate.webp" }
   ];
 
   const cursos = [
@@ -97,7 +97,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* --- SECCIÓN GALERÍA (CON DEGRADADO PROVISIONAL) --- */}
+        {/* --- SECCIÓN GALERÍA --- */}
         <section className="py-24 bg-[#0F172A] relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 relative z-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
@@ -114,22 +114,25 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* TARJETAS CON DEGRADADO ANIMADO */}
+            {/* TARJETAS CON IMÁGENES */}
             <div className="flex flex-col md:flex-row gap-4 h-[500px]">
               {academiaFotos.map((foto, idx) => (
                 <div 
                   key={idx} 
                   className="relative flex-1 hover:flex-[2.5] transition-all duration-700 ease-in-out group overflow-hidden rounded-3xl border border-white/10"
                 >
-                  {/* Fondo provisional: Degradado animado */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] via-[#0F172A] to-[#1E40AF] animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform duration-700"></div>
+                  {/* Imagen Real de la Academia */}
+                  <Image 
+                    src={foto.img} 
+                    alt={foto.title} 
+                    fill 
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                  />
                   
-                  {/* Capa de brillo decorativa */}
-                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_-20%,_#ffffff,_transparent)]"></div>
+                  {/* Capa de overlay para legibilidad */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90"></div>
                   
                   {/* Texto */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-transparent to-transparent opacity-90"></div>
-                  
                   <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                     <p className="text-[#FFD700] font-black text-[10px] uppercase tracking-[0.3em] mb-2 opacity-0 group-hover:opacity-100 transition-opacity">0{idx + 1}</p>
                     <h3 className="text-white text-xl font-black uppercase tracking-tighter">{foto.title}</h3>
@@ -165,9 +168,7 @@ export default function HomePage() {
               {cursos.map((curso, idx) => (
                 <div key={idx} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 group hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
                   <div className="relative h-52 w-full overflow-hidden">
-                    {/* Skeleton loader para imágenes de cursos */}
                     <div className="absolute inset-0 bg-slate-200 animate-pulse"></div>
-                    {/* La imagen solo se mostrará si existe */}
                     <Image src={curso.img} alt={curso.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent opacity-90"></div>
                     <div className="absolute bottom-4 left-4 text-[#FFD700] text-3xl drop-shadow-lg">{curso.icon}</div>
