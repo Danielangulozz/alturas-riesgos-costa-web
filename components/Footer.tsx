@@ -23,7 +23,7 @@ export default function Footer() {
             <h4 className="font-bold text-[#0F172A] dark:text-white mb-4">Servicios</h4>
             <ul className="space-y-3 text-sm text-slate-500">
               <li><Link href="/cursos" className="hover:text-[#1E3A8A] transition">Cursos de alturas</Link></li>
-              <li><Link href="/cursos" className="hover:text-[#1E3A8A] transition">Reentrenamiento</Link></li>
+              <li><Link href="/registro" className="hover:text-[#1E3A8A] transition">Subir Archivos</Link></li>
               <li><Link href="/certificados" className="hover:text-[#1E3A8A] transition">Certificados</Link></li>
             </ul>
           </div>
