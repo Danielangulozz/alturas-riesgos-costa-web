@@ -10,7 +10,7 @@ export default function Footer() {
           {/* COLUMNA 1: EMPRESA */}
           <div className="col-span-1 md:col-span-1">
             <h3 className="text-xl font-bold text-[#0F172A] dark:text-white">
-              Alturas y Riesgos de la Costa S.A.S
+              Alturas y Riesgos de la Costa.
             </h3>
             <p className="mt-4 text-sm text-slate-500 leading-relaxed">
               Líderes en formación y certificación de trabajo seguro en alturas en Sincelejo. 
