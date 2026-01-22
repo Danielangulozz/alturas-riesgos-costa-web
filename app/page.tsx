@@ -186,9 +186,6 @@ export default function HomePage() {
 
                     <h3 className="text-lg font-black text-[#0F172A] leading-tight mb-3 uppercase tracking-tight">{curso.title}</h3>
                     <p className="text-slate-500 text-sm leading-relaxed mb-6 h-12 line-clamp-2 font-medium">{curso.desc}</p>
-                    <button className="w-full py-3 bg-[#0F172A] text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#FFD700] hover:text-[#0F172A] transition-all shadow-lg">
-                      Más información
-                    </button>
                   </div>
                 </div>
               ))}
