@@ -185,7 +185,7 @@ export default function HomePage() {
                     </div>
 
                     <h3 className="text-lg font-black text-[#0F172A] leading-tight mb-3 uppercase tracking-tight">{curso.title}</h3>
-                    <p className="text-slate-500 text-sm mb-6 h-12 line-clamp-2 font-medium">{curso.desc}</p>
+                    <p className="text-slate-500 text-sm mb-6 font-medium">{curso.desc}</p>
                   </div>
                 </div>
               ))}
