@@ -126,11 +126,11 @@ function SearchContent() {
     <div className="relative max-w-2xl w-full mx-auto z-10">
 
         {/* TARJETA DE BÚSQUEDA */}
-        <div className="bg-white rounded-[24px] shadow-xl shadow-slate-200/60 border border-slate-100 p-8 md:p-10">
+        <div className="bg-white rounded-[24px] shadow-xl shadow-slate-200/60 border border-blacK p-8 md:p-10">
             
             <div className="text-center mb-8">
                 <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Validación de Certificados</h1>
-                <p className="text-slate-500 text-sm mt-2 font-medium">Sistema oficial de verificación en tiempo real.</p>
+                <p className="text-slate-500 text-sm mt-2 font-medium">Sistema de verificación en tiempo real.</p>
             </div>
 
             <div className="space-y-4">
@@ -168,7 +168,7 @@ function SearchContent() {
                     "
                 >
                     {loading ? <FaSpinner className="animate-spin"/> : <FaSearch/>}
-                    {loading ? "Verificando..." : "Consultar Base de Datos"}
+                    {loading ? "Verificando..." : "Consultar certificado"}
                 </button>
             </div>
         </div>
