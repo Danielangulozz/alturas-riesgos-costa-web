@@ -1,3 +1,8 @@
+// ============================================================
+// hooks/useBusinessLogic.ts
+// Lógica de negocio: matrícula, agenda, WhatsApp, PDF.
+// generarReporte fue removido — el ModalReporte lo maneja.
+// ============================================================
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import jsPDF from 'jspdf';
@@ -57,7 +62,7 @@ export function useBusinessLogic({
     }
     const tId = toast.loading("Guardando en agenda...");
     try {
-      const cursoInfo = catalogoCursos.find(c => c.nombre_curso === agendaData.curso);
+      const cursoInfo = catalogoCursos.find((c: any) => c.nombre_curso === agendaData.curso);
       const { error } = await supabase.from('agenda').insert([{
         curso: agendaData.curso,
         fecha: agendaData.fecha_inicio,
@@ -86,8 +91,8 @@ export function useBusinessLogic({
     let mensaje = `Hola *${sol.nombre.trim()}* 👋,\nSomos el área de admisiones de *Alturas y Riesgos de la Costa*.\n\nRecibimos tu solicitud para el curso de *${sol.curso}*. `;
     
     mensaje += `\n\n📅 *Fechas Disponibles Proyectadas:*\n`;
-    fechasSeleccionadas.forEach(fId => {
-      const b = agendaBD.find(a => a.id === fId);
+    fechasSeleccionadas.forEach((fId: string) => {
+      const b = agendaBD.find((a: any) => a.id === fId);
       if (b) mensaje += `• ${formatFechaElegante(b.fecha)} a las ${b.hora}\n`;
     });
 
@@ -96,31 +101,10 @@ export function useBusinessLogic({
     mensaje += `\n¿Te gustaría que te reservemos el cupo en alguna de estas fechas? Quedo atento/a para ayudarte con el proceso.`;
 
     const numeroLimpio = sol.telefono.replace(/\D/g, '');
-    const url = `https://wa.me/57${numeroLimpio}?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank');
-  };
-
-  // 4. GENERAR REPORTE (Aptitud/Documentos)
-  const generarReporte = (est: any) => {
-    let mensaje = `Hola *${est.nombre}*,\nTe escribimos de *Alturas y Riesgos de la Costa* para notificarte el estado de tu proceso para el curso de *${est.curso}*.\n\n`;
-    
-    if (est.resultado_final === 'APTO') {
-      mensaje += `✅ ¡Felicidades! Has sido calificado como *APTO*.`;
-      if (est.agenda_id) {
-        const bloque = agendaBD.find(a => a.id === est.agenda_id);
-        if (bloque) mensaje += `\nTu clase está programada para el *${formatFechaElegante(bloque.fecha)}* a las *${bloque.hora}*. Te esperamos.`;
-      }
-    } else {
-      mensaje += `⚠️ Tu estado de aptitud actualmente es: *${est.resultado_final || 'Pendiente'}*.\nPor favor contáctanos para más detalles sobre tu documentación o exámenes.`;
-    }
-    
-    const numeroLimpio = est.telefono ? est.telefono.replace(/\D/g, '') : '';
-    if (!numeroLimpio) return toast.error("El estudiante no tiene número de teléfono registrado.");
-    
     window.open(`https://wa.me/57${numeroLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
-  // 5. DESCARGAR PDF DE ASISTENCIA
+  // 4. DESCARGAR PDF DE ASISTENCIA
   const descargarPDFAsistencia = (bloque: any, inscritos: any[]) => {
     if (inscritos.length === 0) return toast.error("No hay estudiantes para generar la planilla.");
     
@@ -132,12 +116,12 @@ export function useBusinessLogic({
     doc.text(`Fecha: ${bloque.fecha} | Hora: ${bloque.hora}`, 14, 36);
     doc.text(`Intensidad: ${bloque.intensidad_horaria}`, 14, 42);
 
-    const tableData = inscritos.map((est, i) => [
+    const tableData = inscritos.map((est: any, i: number) => [
       i + 1,
       est.nombre.toUpperCase(),
       est.cedula,
       est.empresa || 'INDEPENDIENTE',
-      "" // Espacio para firma
+      ""
     ]);
 
     autoTable(doc, {
@@ -157,7 +141,6 @@ export function useBusinessLogic({
     registrarEstudiante,
     guardarEnAgenda,
     enviarWhatsAppMultifecha,
-    generarReporte,
-    descargarPDFAsistencia
+    descargarPDFAsistencia,
   };
 }

@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
-import { FaClipboardList, FaCloudUploadAlt, FaTimes } from "react-icons/fa";
+import { FaClipboardList, FaCloudUploadAlt, FaTimes, FaUserPlus } from "react-icons/fa";
 
 interface UseRealtimeProps {
   fetchData: () => void;
@@ -10,78 +10,137 @@ interface UseRealtimeProps {
 }
 
 export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }: UseRealtimeProps) {
+  // Usamos useRef para el audio, así no se recarga en cada render
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
+    // Inicializamos el audio usando un archivo real en la carpeta /public
+    // Si prefieres usar base64, reemplaza "/notificacion.mp3" con la cadena base64 válida.
+    if (!audioRef.current) {
+      audioRef.current = new Audio("/notificacion.mp3");
+      audioRef.current.volume = 0.6;
+    }
+
     const playNotificationSound = () => {
-      try {
-        const audio = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIQAykpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKS//OEAAABAAAAAgAAAAAA/84QAAABAAAAAgAAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//OEZAAAA4gAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA//OEZA8A+wAAAAAAABhAAAAAAAAAAAAAAKAAAAAP/zMGRgAgAAAAAA");
-        audio.volume = 0.5;
-        audio.play().catch(e => console.log("Audio bloqueado por navegador hasta interacción", e));
-      } catch (err) {
-        console.error("Error audio", err);
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0; // Reinicia el sonido por si suenan dos seguidos
+        audioRef.current.play().catch(e => console.log("Audio bloqueado por navegador hasta interacción", e));
       }
     };
 
-    const manejarNotificacion = (payload: any, origen: string) => {
+    const manejarNotificacion = (payload: any, tipo: 'solicitud' | 'nuevo_registro' | 'documentos') => {
       playNotificationSound();
       setNotificacionesNuevas((prev) => prev + 1);
       fetchData(); 
 
-      const nombre = payload.new.nombre || "Nuevo Usuario";
-      const esSolicitud = origen === 'solicitud';
-      const titulo = esSolicitud ? "¡Nueva Solicitud Web!" : "Actualización de Archivos";
-      const subtitulo = esSolicitud ? "Quiere información de cursos" : "Ha cargado documentos";
-      const colorBorde = esSolicitud ? "border-emerald-500" : "border-blue-500";
-      const icono = esSolicitud ? <FaClipboardList size={20} className="text-emerald-600"/> : <FaCloudUploadAlt size={20} className="text-blue-600"/>;
-      const bgIcono = esSolicitud ? "bg-emerald-100" : "bg-blue-100";
+      const nombre = payload.new?.nombre?.split(' ')[0] || "Alguien";
+      
+      let titulo = "";
+      let subtitulo = "";
+      let icono = null;
+      let gradienteBg = "";
+      let iconoColor = "";
+
+      switch (tipo) {
+        case 'solicitud':
+          titulo = "Nueva Solicitud Web";
+          subtitulo = `${nombre} está interesado/a en un curso.`;
+          icono = <FaClipboardList size={18} />;
+          gradienteBg = "bg-gradient-to-br from-emerald-100 to-teal-50 border-emerald-200";
+          iconoColor = "text-emerald-600 bg-white";
+          break;
+        case 'nuevo_registro':
+          titulo = "Nuevo Estudiante Matriculado";
+          subtitulo = `${nombre} se ha registrado en el sistema.`;
+          icono = <FaUserPlus size={18} />;
+          gradienteBg = "bg-gradient-to-br from-indigo-100 to-blue-50 border-indigo-200";
+          iconoColor = "text-indigo-600 bg-white";
+          break;
+        case 'documentos':
+          titulo = "Archivos Actualizados";
+          subtitulo = `${nombre} ha subido nuevos documentos.`;
+          icono = <FaCloudUploadAlt size={18} />;
+          gradienteBg = "bg-gradient-to-br from-amber-100 to-orange-50 border-amber-200";
+          iconoColor = "text-amber-600 bg-white";
+          break;
+      }
 
       toast.custom((t) => (
-        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col ring-1 ring-black ring-opacity-5 border-l-4 ${colorBorde}`}>
-          <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${bgIcono}`}>
-                  {icono}
-                </div>
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{titulo}</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  <span className="font-bold">{nombre}</span> {subtitulo}
-                </p>
-              </div>
-              <div className="ml-4 flex-shrink-0 flex">
-                <button onClick={() => toast.dismiss(t.id)} className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-                  <FaTimes />
-                </button>
-              </div>
+        <div className={`${t.visible ? 'animate-in slide-in-from-right-8 fade-in duration-300' : 'animate-out slide-out-to-right-8 fade-out duration-300'} 
+          max-w-sm w-full bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl pointer-events-auto flex flex-col overflow-hidden border border-slate-100`}
+        >
+          {/* Header del Toast */}
+          <div className={`p-4 flex items-start gap-4 border-b ${gradienteBg}`}>
+            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${iconoColor}`}>
+              {icono}
             </div>
-          </div>
-          <div className="flex border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+            <div className="flex-1 pt-0.5 min-w-0">
+              <p className="text-[13px] font-black text-slate-800 uppercase tracking-wide leading-tight">{titulo}</p>
+              <p className="text-[12px] font-medium text-slate-600 mt-1 truncate">{subtitulo}</p>
+            </div>
             <button 
-              onClick={() => {
-                setActiveTab(esSolicitud ? 'solicitudes' : 'lista');
-                toast.dismiss(t.id);
-                if (!esSolicitud) setNotificacionesNuevas(0); 
-              }} 
-              className="w-full rounded-b-2xl p-3 flex items-center justify-center text-xs font-black text-blue-600 uppercase tracking-widest hover:bg-blue-100 transition-colors"
+              onClick={() => toast.dismiss(t.id)} 
+              className="flex-shrink-0 bg-white/50 hover:bg-white text-slate-400 hover:text-slate-600 p-1.5 rounded-full transition-colors"
             >
-              Ver Detalles Ahora
+              <FaTimes size={12}/>
             </button>
           </div>
+
+          {/* Botón de Acción */}
+          <button 
+            onClick={() => {
+              setActiveTab(tipo === 'solicitud' ? 'solicitudes' : 'lista');
+              toast.dismiss(t.id);
+              if (tipo !== 'solicitud') setNotificacionesNuevas(0); 
+            }} 
+            className="w-full bg-slate-50 hover:bg-slate-100 p-3 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase tracking-widest transition-colors"
+          >
+            Revisar Detalles ➔
+          </button>
         </div>
-      ), { duration: 6000, position: 'top-right' });
+      ), { duration: 5000, position: 'top-right' });
     };
 
     const channel = supabase
       .channel('tablero-admin-vivo')
+      // ESCUCHAR PREINSCRIPCIONES (Nuevos registros y subida de documentos)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'preinscripciones' }, (payload: any) => {
-           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') manejarNotificacion(payload, 'preinscripcion');
+          
+          // 1. Si es un INSERT, alguien nuevo se registró
+          if (payload.eventType === 'INSERT') {
+            manejarNotificacion(payload, 'nuevo_registro');
+          } 
+          // 2. Si es un UPDATE, filtramos para que NO suene si el admin hace cambios.
+          else if (payload.eventType === 'UPDATE') {
+            const oldData = payload.old || {};
+            const newData = payload.new || {};
+
+            // IMPORTANTE: Para que esto funcione bien, debes ir a Supabase -> Database -> Tables -> preinscripciones 
+            // -> Editar -> Activar "Replica Identity: Full". Así Supabase te enviará el 'oldData'.
+
+            // Ejemplo de lógica para detectar si se subió un documento:
+            // Verificamos si algún campo de documento cambió de vacío/null a tener una URL.
+            // Ajusta los nombres ('doc_cc', 'doc_medico') a los que uses en tu base de datos.
+            const subioDocumentos = (
+              (newData.doc_cc && newData.doc_cc !== oldData.doc_cc) ||
+              (newData.doc_medico && newData.doc_medico !== oldData.doc_medico) ||
+              (newData.eps && newData.eps !== oldData.eps)
+            );
+
+            // También evitamos notificar si el cambio fue administrativo (ej: tú cambiaste el estado de pago)
+            const esCambioAdministrativo = (newData.estado_pago !== oldData.estado_pago) || (newData.estado !== oldData.estado);
+
+            if (subioDocumentos && !esCambioAdministrativo) {
+              manejarNotificacion(payload, 'documentos');
+            }
+          }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, (payload: any) => {
-           if (payload.eventType === 'INSERT') manejarNotificacion(payload, 'solicitud');
+      // ESCUCHAR SOLICITUDES (Solo cuando insertan una nueva)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes' }, (payload: any) => {
+          manejarNotificacion(payload, 'solicitud');
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetchData, setActiveTab, setNotificacionesNuevas]); // <-- Importante este arreglo de dependencias
+  }, [fetchData, setActiveTab, setNotificacionesNuevas]); 
 }

@@ -8,6 +8,8 @@ import { formatFechaElegante } from "../utils/formatters";
 import { DocButton } from "./DocButton";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
+import * as XLSX from 'xlsx';
+import { FaFileExcel } from 'react-icons/fa'; // Asegúrate de importar el ícono
 
 interface TabListaProps {
   busqueda: string;
@@ -32,6 +34,56 @@ export function TabLista({
   toggleVerificacion, actualizarEstadoEstudiante, generarReporte, borrarRegistro,
   modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado
 }: TabListaProps) {
+
+  const exportarAExcel = () => {
+    if (listaUnificada.length === 0) return toast.error("No hay datos para exportar");
+
+    const toastId = toast.loading("Generando archivo Excel...");
+
+    try {
+      // 1. Mapear y limpiar los datos para Excel
+      const datosExcel = listaUnificada.map(est => ({
+        "Nombre Completo": est.nombre || "N/A",
+        "Documento (C.C)": est.cedula || "N/A",
+        "Teléfono": est.telefono || "N/A",
+        "Email": est.email || "N/A",
+        "Curso Seleccionado": est.curso || "N/A",
+        "Empresa": est.empresa || "Independiente",
+        "Estado de Pago": est.estado_pago || est.estadoPago || "Pendiente",
+        "Aptitud Médica": est.resultado_final || "Pendiente",
+        "Origen de Registro": est.etiqueta === 'WEB' ? 'Página Web' : 'Manual',
+        "Fecha de Ingreso": est.created_at || est.fecha_registro ? new Date(est.created_at || est.fecha_registro).toLocaleDateString('es-CO') : "N/A"
+      }));
+
+      // 2. Crear la hoja y el libro de Excel
+      const worksheet = XLSX.utils.json_to_sheet(datosExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Base de Datos");
+
+      // 3. Ajustar el ancho de las columnas para que se vea bien
+      const wscols = [
+        { wch: 35 }, // Nombre
+        { wch: 15 }, // Documento
+        { wch: 15 }, // Teléfono
+        { wch: 30 }, // Email
+        { wch: 35 }, // Curso
+        { wch: 25 }, // Empresa
+        { wch: 15 }, // Pago
+        { wch: 15 }, // Aptitud
+        { wch: 20 }, // Origen
+        { wch: 15 }  // Fecha
+      ];
+      worksheet['!cols'] = wscols;
+
+      // 4. Descargar el archivo
+      XLSX.writeFile(workbook, `Reporte_Estudiantes_${new Date().toLocaleDateString('es-CO').replace(/\//g, '-')}.xlsx`);
+      
+      toast.success("¡Excel descargado con éxito!", { id: toastId });
+    } catch (error) {
+      console.error(error);
+      toast.error("Hubo un error al generar el Excel", { id: toastId });
+    }
+  };
   
   return (
     <div className="space-y-4 animate-in fade-in">
@@ -44,6 +96,13 @@ export function TabLista({
           onChange={(e) => setBusqueda(e.target.value)} 
           className="w-full p-2 bg-slate-50 border rounded-xl outline-none" 
         />
+        <button 
+          onClick={exportarAExcel}
+          className="flex items-center gap-2 bg-[#107C41] hover:bg-[#0e6b38] text-white px-3 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-200/50 active:scale-95"
+          title="Descargar tabla actual en Excel"
+        >
+          <FaFileExcel size={14} />
+        </button>
         <button 
           onClick={() => fetchData(true)}
           disabled={isRefreshing}
