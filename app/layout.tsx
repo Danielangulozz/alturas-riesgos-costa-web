@@ -15,6 +15,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
 
+
+  verification: {
+
+    google: "3uB2wsfVjDE6Yj0AqUTUmzX-r6YFe8FKytmvs1Azp18",
+  },
   title: {
     default: "Curso de Alturas y Espacios Confinados en Sincelejo",
     template: "%s | Alturas y Riesgos de la Costa"
