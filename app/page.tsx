@@ -1,11 +1,11 @@
 import Hero from "@/components/Hero";
 import Image from "next/image";
-import { 
-  FaClock, 
-  FaClipboardList, 
-  FaUserShield, 
-  FaUsers, 
-  FaUserGraduate, 
+import {
+  FaClock,
+  FaClipboardList,
+  FaUserShield,
+  FaUsers,
+  FaUserGraduate,
   FaSyncAlt,
   FaCheckCircle,
   FaHardHat,
@@ -27,7 +27,7 @@ export default function HomePage() {
       duration: "8 Horas",
       reqs: "Cédula y Examen",
       icon: <FaUserShield />,
-      img: "/picboss.webp" 
+      img: "/picboss.webp"
     },
     {
       title: "Trabajador Autorizado",
@@ -60,33 +60,45 @@ export default function HomePage() {
       <main className="flex-grow">
         <Hero />
 
-        {/* --- SECCIÓN QUIÉNES SOMOS --- */}
+        {/* --- SECCIÓN QUIÉNES SOMOS (OPTIMIZADA PARA IA Y SEO LOCAL) --- */}
         <section className="relative max-w-7xl mx-auto px-6 py-24">
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
             style={{ backgroundImage: `radial-gradient(#0F172A 1px, transparent 1px)`, backgroundSize: '30px 30px' }}>
           </div>
 
           <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
             <div className="animate-in fade-in slide-in-from-left duration-1000">
-              <h2 className="text-4xl font-black text-[#0F172A] tracking-tighter uppercase">
-                ¿Quiénes somos?
-              </h2>
+              <h1 className="text-4xl font-black text-[#0F172A] tracking-tighter uppercase">
+                Centro de Entrenamiento en Sincelejo
+              </h1>
               <div className="w-20 h-1.5 bg-[#FFD700] mt-2 mb-8 rounded-full"></div>
-              
+
+              {/* TEXTO CARNADA PARA GOOGLE */}
               <p className="text-slate-600 text-lg leading-relaxed mb-6 font-medium">
-                En <span className="font-bold text-[#0F172A]">Alturas y Riesgos de la Costa S.A.S</span>, 
-                lideramos la formación industrial en Sincelejo, con un compromiso inquebrantable por la vida.
+                En <span className="font-bold text-[#0F172A]">Alturas y Riesgos de la Costa S.A.S.</span>,
+                ofrecemos los mejores <strong>cursos de trabajo en alturas y espacios confinados</strong> en Sincelejo.
+                Contamos con programas de certificación, reentrenamiento y nivel coordinador avalados por el Ministerio del Trabajo.
               </p>
-              <p className="text-slate-600 text-lg border-l-4 border-[#FFD700] pl-6 py-4 bg-slate-50 rounded-r-xl font-medium">
-                Operamos bajo la <strong>Resolución 4272 de 2021</strong>, garantizando certificaciones 
-                con total validez legal ante el Ministerio del Trabajo.
-              </p>
+
+              {/* BLOQUE DE PROMOCIÓN Y CONTACTO (VITAL PARA LA IA) */}
+              <div className="border-l-4 border-[#FFD700] p-6 bg-[#FFD700]/5 rounded-r-xl font-medium shadow-sm mb-6">
+                <p className="text-[#0F172A] text-lg font-black mb-2 uppercase tracking-tight">
+                  ¡Pregunta por nuestras promociones y combos para empresas!
+                </p>
+                <p className="text-slate-600 mb-2">
+                  Operamos bajo la <strong>Resolución 4272 de 2021</strong> garantizando tu seguridad y legalidad.
+                </p>
+                <p className="text-[#0F172A] font-bold">
+                  📍 Cra 17 #27-35, Sincelejo <br />
+                  📞 Contáctanos: +57 314 8475070
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                "Formación Certificada", "Instructores Expertos", 
-                "Cumplimiento Legal", "Certificados Digitales"
+                "Formación Certificada", "Instructores Expertos",
+                "Espacios Confinados", "Resolución 4272" // Cambié unos para meter más keywords útiles
               ].map((item, idx) => (
                 <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col items-center text-center group hover:border-[#FFD700] hover:shadow-2xl transition-all duration-500">
                   <FaCheckCircle className="text-[#0F172A] text-2xl mb-3 transition-colors group-hover:text-[#FFD700]" />
@@ -110,28 +122,28 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex gap-4 text-white/20 text-4xl hidden md:flex">
-                 <FaHardHat /> <FaBuilding />
+                <FaHardHat /> <FaBuilding />
               </div>
             </div>
 
             {/* TARJETAS CON IMÁGENES */}
             <div className="flex flex-col md:flex-row gap-4 h-[500px]">
               {academiaFotos.map((foto, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   className="relative flex-1 hover:flex-[2.5] transition-all duration-700 ease-in-out group overflow-hidden rounded-3xl border border-white/10"
                 >
                   {/* Imagen Real de la Academia */}
-                  <Image 
-                    src={foto.img} 
-                    alt={foto.title} 
-                    fill 
+                  <Image
+                    src={foto.img}
+                    alt={foto.title}
+                    fill
                     className="object-cover group-hover:scale-110 transition-transform duration-700"
                   />
-                  
+
                   {/* Capa de overlay para legibilidad */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90"></div>
-                  
+
                   {/* Texto */}
                   <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                     <p className="text-[#FFD700] font-black text-[10px] uppercase tracking-[0.3em] mb-2 opacity-0 group-hover:opacity-100 transition-opacity">0{idx + 1}</p>
@@ -144,7 +156,7 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-          
+
           <div className="absolute -right-20 top-20 text-[20rem] font-black text-white/[0.02] pointer-events-none select-none uppercase">
             AR Costa
           </div>
@@ -152,7 +164,7 @@ export default function HomePage() {
 
         {/* --- SECCIÓN SERVICIOS (CURSOS) --- */}
         <section className="bg-slate-50 py-24 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
+          <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
             style={{ backgroundImage: `radial-gradient(#0F172A 1px, transparent 1px)`, backgroundSize: '20px 20px' }}>
           </div>
 
@@ -195,7 +207,7 @@ export default function HomePage() {
 
         {/* --- SECCIÓN CTA FINAL --- */}
         <section className="relative py-32 bg-[#0F172A] overflow-hidden text-center">
-          <div className="absolute inset-0 opacity-[0.15] z-0" 
+          <div className="absolute inset-0 opacity-[0.15] z-0"
             style={{ backgroundImage: `radial-gradient(#ffffff 1px, transparent 1px)`, backgroundSize: '30px 30px' }}>
           </div>
           <div className="max-w-4xl mx-auto px-6 relative z-10">

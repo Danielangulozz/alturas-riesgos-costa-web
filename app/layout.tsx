@@ -16,12 +16,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
 
   title: {
-    default: "Curso de Alturas en Sincelejo | Alturas y Riesgos de la Costa",
+    default: "Curso de Alturas y Espacios Confinados en Sincelejo",
     template: "%s | Alturas y Riesgos de la Costa"
   },
 
+  // CARNADA AÑADIDA AQUÍ (Esto lo lee el buscador)
   description:
-    "Centro de entrenamiento en Sincelejo, Sucre. Cursos certificados de trabajo seguro en alturas (Res. 4272). ¡Valida tu certificado!",
+    "Centro de entrenamiento líder en Sincelejo. Cursos certificados de alturas, espacios confinados y nivel coordinador (Res. 4272). ¡Pregunta por nuestras promociones y combos para empresas!",
 
   keywords: [
     "curso de alturas sincelejo",
@@ -29,7 +30,8 @@ export const metadata: Metadata = {
     "renovación curso alturas",
     "coordinador de alturas",
     "espacios confinados sincelejo",
-    "centro de entrenamiento alturas"
+    "centro de entrenamiento alturas",
+    "promociones curso de alturas"
   ],
 
   authors: [{ name: "Alturas y Riesgos de la Costa S.A.S", url: BASE_URL }],
@@ -53,7 +55,7 @@ export const metadata: Metadata = {
     locale: "es_CO",
     url: BASE_URL,
     title: "Cursos de Alturas Certificados en Sincelejo",
-    description: "Cursos de alturas, reentrenamiento y coordinadores en Sincelejo. Certificados verificables en línea al instante.",
+    description: "Cursos de alturas, espacios confinados y coordinadores en Sincelejo. Certificados verificables en línea. ¡Consulta promociones!",
     siteName: "Alturas y Riesgos de la Costa",
     images: [
       {
@@ -99,13 +101,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
 
-  // JSON-LD Optimizado para SEO Local
+  // JSON-LD Optimizado con la "Carnada"
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": ["EducationalOrganization", "LocalBusiness"], // Doble tipo para dominar búsquedas locales
+    "@type": ["EducationalOrganization", "LocalBusiness"],
     "name": "Alturas y Riesgos de la Costa S.A.S",
     "image": `${BASE_URL}/logo-blanco.webp`,
-    "description": "Centro de entrenamiento certificado para trabajo seguro en alturas en Sincelejo, Sucre.",
+    "description": "Centro de entrenamiento certificado en Sincelejo, Sucre. Ofrecemos cursos de trabajo seguro en alturas, espacios confinados, reentrenamiento y coordinador con excelentes promociones empresariales.",
     "@id": BASE_URL,
     "url": BASE_URL,
     "telephone": "+573148475070",
