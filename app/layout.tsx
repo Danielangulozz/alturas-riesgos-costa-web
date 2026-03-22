@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     google: "3uB2wsfVjDE6Yj0AqUTUmzX-r6YFe8FKytmvs1Azp18",
   },
   title: {
-    default: "Curso de Alturas y Espacios Confinados en Sincelejo",
+    default: "Curso de Alturas en Sincelejo",
     template: "%s | Alturas y Riesgos de la Costa"
   },
 
