@@ -199,8 +199,8 @@ export default function Hero() {
                   <Image
                     src="/logo-blanco.webp"
                     alt="Alturas y Riesgos de la Costa S.A.S"
-                    width={500}
-                    height={500}
+                    width={360}
+                    height={360}
                     priority
                     className="object-contain drop-shadow-2xl"
                   />

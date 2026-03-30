@@ -69,7 +69,9 @@ export default function Footer() {
             {/* Redes sociales */}
             <div className="flex gap-3 pt-1">
               <a
-                href="#"
+                href="https://www.facebook.com/alturasyriesgos"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Facebook"
                 className="w-9 h-9 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200"
               >

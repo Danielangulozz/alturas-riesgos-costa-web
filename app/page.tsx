@@ -1,9 +1,8 @@
-"use client";
-
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Hero from "@/components/Hero";
+import { AnimateIn, PageAnimations } from "@/components/AnimateIn";
 import {
   FaClock, FaClipboardList, FaUserShield, FaUsers,
   FaUserGraduate, FaSyncAlt, FaCheckCircle, FaHardHat,
@@ -11,55 +10,8 @@ import {
   FaMapMarkerAlt, FaPhoneAlt
 } from "react-icons/fa";
 
-// ─── Hook inView unificado ───
-function useInView(threshold = 0.12) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setInView(true); obs.disconnect(); }
-    }, { threshold });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, inView };
-}
-
-// ─── AnimateIn wrapper ───
-function AnimateIn({ children, delay = 0, from = "fadeUp", className = "" }: {
-  children: React.ReactNode; delay?: number;
-  from?: "fadeUp" | "fadeLeft" | "fadeRight" | "fadeIn" | "scaleUp"; className?: string;
-}) {
-  const { ref, inView } = useInView();
-  const base: Record<string, string> = {
-    fadeUp:    "translate-y-8 opacity-0",
-    fadeLeft:  "-translate-x-8 opacity-0",
-    fadeRight: "translate-x-8 opacity-0",
-    fadeIn:    "opacity-0",
-    scaleUp:   "scale-95 opacity-0",
-  };
-  return (
-    <div
-      ref={ref}
-      className={`transition-all duration-700 ease-out ${className} ${
-        inView ? "translate-y-0 translate-x-0 scale-100 opacity-100" : base[from]
-      }`}
-      style={{ transitionDelay: inView ? `${delay}ms` : "0ms" }}
-    >
-      {children}
-    </div>
-  );
-}
-
-
 
 export default function HomePage() {
-  const [headerVisible, setHeaderVisible] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setHeaderVisible(true), 100);
-    return () => clearTimeout(t);
-  }, []);
 
   const academiaFotos = [
     { title: "Pista de Entrenamiento", desc: "Estructuras certificadas para práctica real.", img: "/pic1.webp" },
@@ -84,33 +36,7 @@ export default function HomePage() {
 
   return (
     <>
-      <style jsx global>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(28px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes growWidth {
-          from { width: 0; } to { width: 100%; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-8px); }
-        }
-        @keyframes shimmer {
-          0%   { background-position: -200% center; }
-          100% { background-position:  200% center; }
-        }
-        .line-grow   { animation: growWidth 1s cubic-bezier(.22,1,.36,1) 0.6s forwards; width: 0; }
-        .float-anim  { animation: float 4s ease-in-out infinite; }
-        .shimmer-text {
-          background: linear-gradient(90deg, #FFD700 0%, #fff 40%, #FFD700 60%, #fff 80%, #FFD700 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmer 4s linear infinite;
-        }
-      `}</style>
+      <PageAnimations />
 
       <div className="flex flex-col min-h-screen bg-white overflow-x-hidden">
         <main className="flex-grow">
@@ -307,7 +233,7 @@ export default function HomePage() {
                         src={foto.img}
                         alt={foto.title}
                         fill
-                        sizes="(max-width: 1024px) 100vw, 100vw"
+                        sizes="(max-width: 768px) 100vw, 33vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-700"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/20 to-transparent" />
@@ -374,7 +300,7 @@ export default function HomePage() {
                           src={curso.img}
                           alt={curso.title}
                           fill
-                          sizes="(max-width: 768px) 100vw, 25vw"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-700"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent" />
