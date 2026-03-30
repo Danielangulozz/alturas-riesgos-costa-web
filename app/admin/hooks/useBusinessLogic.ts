@@ -100,7 +100,7 @@ export function useBusinessLogic({
         fecha: agendaData.fecha_inicio,
         fecha_fin: agendaData.fecha_fin || agendaData.fecha_inicio,
         hora: agendaData.hora,
-        intensidad_horaria: cursoInfo ? cursoInfo.intensidad_horaria : "No especificada"
+        intensidad_horaria: cursoInfo ? cursoInfo.intensidad_horaria : "No es especificada"
       }]);
 
       if (error) throw error;
