@@ -15,23 +15,23 @@ export default function HomePage() {
 
   const academiaFotos = [
     { title: "Pista de Entrenamiento", desc: "Estructuras certificadas para práctica real.", img: "/pic1.webp" },
-    { title: "Equipamiento Técnico",   desc: "Arneses y conectores de última generación.", img: "/equipament.webp" },
-    { title: "Aulas Teóricas",         desc: "Espacios climatizados para formación técnica.", img: "/aula.webp" },
-    { title: "Simulación de Rescate",  desc: "Escenarios controlados de alta complejidad.", img: "/rescate.webp" },
+    { title: "Equipamiento Técnico", desc: "Arneses y conectores de última generación.", img: "/equipament.webp" },
+    { title: "Aulas Teóricas", desc: "Espacios climatizados para formación técnica.", img: "/aula.webp" },
+    { title: "Simulación de Rescate", desc: "Escenarios controlados de alta complejidad.", img: "/rescate.webp" },
   ];
 
   const cursos = [
-    { title: "Jefes de Área",         desc: "Personal administrativo que dicta políticas sobre seguridad en alturas.", duration: "8 Horas",  reqs: "Cédula y Examen",    icon: <FaUserShield />,   img: "/picboss.webp",  color: "from-orange-600 to-amber-500" },
-    { title: "Trabajador Autorizado",  desc: "Formación técnica para operarios que realizan labores directas en alturas.",  duration: "32 Horas", reqs: "Aptitud Médica",     icon: <FaUsers />,        img: "/pictrabj.webp", color: "from-blue-600 to-cyan-500" },
-    { title: "Coordinador de Alturas", desc: "Identificar peligros y supervisar medidas de protección en sitio.",          duration: "80 Horas", reqs: "Exp. Certificada",   icon: <FaUserGraduate />, img: "/piccoo.webp",   color: "from-violet-600 to-purple-500" },
-    { title: "Reentrenamiento",        desc: "Actualización anual obligatoria para mantener vigentes las competencias.",    duration: "8 Horas",  reqs: "Certificado Previo", icon: <FaSyncAlt />,      img: "/picree.webp",   color: "from-emerald-600 to-teal-500" },
+    { title: "Jefes de Área", desc: "Personal administrativo que dicta políticas sobre seguridad en alturas.", duration: "8 Horas", reqs: "Cédula y Examen", icon: <FaUserShield />, img: "/picboss.webp", color: "from-orange-600 to-amber-500" },
+    { title: "Trabajador Autorizado", desc: "Formación técnica para operarios que realizan labores directas en alturas.", duration: "32 Horas", reqs: "Aptitud Médica", icon: <FaUsers />, img: "/pictrabj.webp", color: "from-blue-600 to-cyan-500" },
+    { title: "Coordinador de Alturas", desc: "Identificar peligros y supervisar medidas de protección en sitio.", duration: "80 Horas", reqs: "Exp. Certificada", icon: <FaUserGraduate />, img: "/piccoo.webp", color: "from-violet-600 to-purple-500" },
+    { title: "Reentrenamiento", desc: "Actualización anual obligatoria para mantener vigentes las competencias.", duration: "8 Horas", reqs: "Certificado Previo", icon: <FaSyncAlt />, img: "/picree.webp", color: "from-emerald-600 to-teal-500" },
   ];
 
   const ventajas = [
-    { icon: <FaShieldAlt />,    titulo: "Avalado por el Min. Trabajo", desc: "Resolución 4272 de 2021 como respaldo legal de cada programa." },
-    { icon: <FaHardHat />,      titulo: "Instructores con Campo Real",  desc: "Cada formador tiene experiencia activa en altura, no solo teórica." },
-    { icon: <FaCertificate />,  titulo: "Certificado Digital Inmediato",desc: "Sistema en línea. Descarga tu PDF verificable en minutos." },
-    { icon: <FaBuilding />,     titulo: "Combos para Empresas",        desc: "Tarifas especiales y cronograma ajustado a tu operación." },
+    { icon: <FaShieldAlt />, titulo: "Avalado por el Min. Trabajo", desc: "Resolución 4272 de 2021 como respaldo legal de cada programa." },
+    { icon: <FaHardHat />, titulo: "Instructores con Campo Real", desc: "Cada formador tiene experiencia activa en altura, no solo teórica." },
+    { icon: <FaCertificate />, titulo: "Certificado Digital Inmediato", desc: "Sistema en línea. Descarga tu PDF verificable en minutos." },
+    { icon: <FaBuilding />, titulo: "Combos para Empresas", desc: "Tarifas especiales y cronograma ajustado a tu operación." },
   ];
 
   return (
@@ -59,28 +59,28 @@ export default function HomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden">
                 {[
                   {
-                    icon: <FaShieldAlt size={20}/>,
+                    icon: <FaShieldAlt size={20} />,
                     titulo: "Resolución 4272",
                     desc: "Toda nuestra formación cumple la normativa del Ministerio del Trabajo vigente.",
                     color: "text-blue-400",
                     bg: "bg-blue-500/10",
                   },
                   {
-                    icon: <FaHardHat size={20}/>,
+                    icon: <FaHardHat size={20} />,
                     titulo: "Instructores de Campo",
                     desc: "No solo saben la teoría — tienen horas reales de trabajo en altura.",
                     color: "text-cyan-400",
                     bg: "bg-cyan-500/10",
                   },
                   {
-                    icon: <FaCertificate size={20}/>,
+                    icon: <FaCertificate size={20} />,
                     titulo: "Certificado Digital",
                     desc: "PDF verificable con código QR. Auténtico, inmediato y a prueba de fraude.",
                     color: "text-emerald-400",
                     bg: "bg-emerald-500/10",
                   },
                   {
-                    icon: <FaBuilding size={20}/>,
+                    icon: <FaBuilding size={20} />,
                     titulo: "Planes para Empresas",
                     desc: "Cronograma flexible y tarifas especiales para equipos de cualquier tamaño.",
                     color: "text-amber-400",
@@ -152,10 +152,10 @@ export default function HomePage() {
                   {/* Dato de contacto */}
                   <div className="border-l-4 border-blue-600 pl-5 py-1 mb-8 space-y-1">
                     <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                      <FaMapMarkerAlt className="text-blue-500" size={12}/> Cra 17 #27-35, Sincelejo, Sucre
+                      <FaMapMarkerAlt className="text-blue-500" size={12} /> Cra 17 #27-35, Sincelejo, Sucre
                     </p>
                     <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                      <FaPhoneAlt className="text-blue-500" size={11}/> +57 314 8475070
+                      <FaPhoneAlt className="text-blue-500" size={11} /> +57 314 8475070
                     </p>
                   </div>
 
@@ -164,7 +164,7 @@ export default function HomePage() {
                     className="group inline-flex items-center gap-3 px-8 py-4 bg-slate-900 hover:bg-blue-700 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:-translate-y-0.5"
                   >
                     Cotizar Ahora
-                    <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1"/>
+                    <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1" />
                   </Link>
                 </div>
               </AnimateIn>
@@ -245,9 +245,8 @@ export default function HomePage() {
 
                       {/* Texto al hover */}
                       <div className="absolute bottom-0 left-0 right-0 p-7">
-                        <div className={`h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 mb-4 transition-all duration-500 ${
-                          "w-0 group-hover:w-12"
-                        }`} style={{ transitionDelay: "100ms" }} />
+                        <div className={`h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 mb-4 transition-all duration-500 ${"w-0 group-hover:w-12"
+                          }`} style={{ transitionDelay: "100ms" }} />
                         <h3 className="text-white text-base font-black uppercase tracking-tight leading-none mb-2">
                           {foto.title}
                         </h3>
@@ -312,7 +311,7 @@ export default function HomePage() {
 
                         {/* Badge duración */}
                         <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm">
-                          <FaClock size={9} className="text-slate-500"/>
+                          <FaClock size={9} className="text-slate-500" />
                           <span className="text-[10px] font-black text-slate-700 uppercase">{curso.duration}</span>
                         </div>
                       </div>
@@ -321,7 +320,7 @@ export default function HomePage() {
                       <div className="p-6 flex flex-col flex-1">
                         {/* Requisito */}
                         <span className="inline-flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                          <FaClipboardList size={9}/> {curso.reqs}
+                          <FaClipboardList size={9} /> {curso.reqs}
                         </span>
 
                         <h3 className="text-base font-black text-slate-900 leading-tight mb-2 uppercase tracking-tight">
@@ -344,7 +343,7 @@ export default function HomePage() {
                   className="group inline-flex items-center gap-3 px-8 py-4 bg-white border-2 border-slate-200 hover:border-blue-500 text-slate-700 hover:text-blue-600 font-black text-sm uppercase tracking-widest rounded-2xl transition-all hover:-translate-y-0.5"
                 >
                   Ver todos los programas
-                  <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1"/>
+                  <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1" />
                 </Link>
               </AnimateIn>
             </div>
@@ -367,7 +366,7 @@ export default function HomePage() {
 
               <AnimateIn from="fadeIn">
                 <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-blue-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-8">
-                  <FaCheckCircle size={10}/> Sistema de verificación en línea
+                  <FaCheckCircle size={10} /> Sistema de verificación en línea
                 </div>
               </AnimateIn>
 
@@ -393,9 +392,9 @@ export default function HomePage() {
                   href="/certificados"
                   className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-2xl shadow-blue-900/40 hover:shadow-blue-600/50 hover:-translate-y-1 transition-all duration-300"
                 >
-                  <FaShieldAlt size={14}/>
+                  <FaShieldAlt size={14} />
                   Validar Certificado Ahora
-                  <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1"/>
+                  <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1" />
                 </Link>
               </AnimateIn>
 

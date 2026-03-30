@@ -23,8 +23,8 @@ interface UseBusinessLogicProps {
 }
 
 export function useBusinessLogic({
-  fetchData, registrarLog, formData, setFormData, 
-  agendaData, setAgendaData, fechasSeleccionadas, 
+  fetchData, registrarLog, formData, setFormData,
+  agendaData, setAgendaData, fechasSeleccionadas,
   preciosEditados, agendaBD, catalogoCursos
 }: UseBusinessLogicProps) {
 
@@ -39,14 +39,14 @@ export function useBusinessLogic({
         etiqueta: 'MANUAL',
         fecha_registro: new Date().toISOString()
       }]);
-      
+
       if (error) throw error;
-      
+
       toast.success("Estudiante registrado exitosamente", { id: tId });
       registrarLog("Matriculación Manual", `Registró a ${formData.nombre}`);
       setFormData({
-        nombre: "", cedula: "", email: "", telefono: "", curso: "", 
-        ciudad_residencia: "", barrio: "", fecha_nacimiento: "", 
+        nombre: "", cedula: "", email: "", telefono: "", curso: "",
+        ciudad_residencia: "", barrio: "", fecha_nacimiento: "",
         sexo: "", horario_preferencia: "", empresa: "", nit: "", estadoPago: "Pendiente"
       });
       fetchData();
@@ -87,9 +87,9 @@ export function useBusinessLogic({
     if (fechasSeleccionadas.length === 0) {
       return toast.error("Selecciona al menos una fecha de la agenda para proponer.");
     }
-    
+
     let mensaje = `Hola *${sol.nombre.trim()}* 👋,\nSomos el área de admisiones de *Alturas y Riesgos de la Costa*.\n\nRecibimos tu solicitud para el curso de *${sol.curso}*. `;
-    
+
     mensaje += `\n\n📅 *Fechas Disponibles Proyectadas:*\n`;
     fechasSeleccionadas.forEach((fId: string) => {
       const b = agendaBD.find((a: any) => a.id === fId);
@@ -107,7 +107,7 @@ export function useBusinessLogic({
   // 4. DESCARGAR PDF DE ASISTENCIA
   const descargarPDFAsistencia = (bloque: any, inscritos: any[]) => {
     if (inscritos.length === 0) return toast.error("No hay estudiantes para generar la planilla.");
-    
+
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("Planilla de Asistencia - Alturas y Riesgos de la Costa", 14, 20);

@@ -48,10 +48,10 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // 4. LOGICA DE PROTECCIÓN DE RUTAS
-  
+
   // A. Si intenta entrar a cualquier ruta que empiece por /admin...
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    
+
     // ...y NO es la página de login...
     if (request.nextUrl.pathname !== '/admin/login') {
       // ...y NO tiene usuario --> LO MANDAMOS AL LOGIN
@@ -59,7 +59,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin/login', request.url))
       }
     }
-    
+
     // B. Si YA tiene usuario e intenta entrar al LOGIN --> LO MANDAMOS AL DASHBOARD
     if (request.nextUrl.pathname === '/admin/login' && user) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url))

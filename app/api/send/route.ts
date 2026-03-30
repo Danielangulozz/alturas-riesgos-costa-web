@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   }
 
   // Sanitizar antes de usar en HTML
-  const safeName   = escapeHtml(nombre.trim());
+  const safeName = escapeHtml(nombre.trim());
   const safeEstado = escapeHtml(estado.trim());
 
   const resend = new Resend(apiKey);
@@ -72,4 +72,4 @@ export async function POST(req: Request) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json({ error: message }, { status: 400 });
   }
-}
+}
