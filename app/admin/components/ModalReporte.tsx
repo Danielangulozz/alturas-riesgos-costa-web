@@ -7,9 +7,9 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
-import { 
+import {
   FaTimes, FaCopy, FaPhoneAlt, FaEnvelope, FaCheck,
-  FaMoneyBillWave, FaCalendarAlt, FaCheckCircle, 
+  FaMoneyBillWave, FaCalendarAlt, FaCheckCircle,
   FaBuilding, FaUser, FaEdit, FaFileAlt, FaWhatsapp
 } from "react-icons/fa";
 import toast from "react-hot-toast";
@@ -37,14 +37,14 @@ function esEmpresa(est: any): boolean {
   if (est?.tipo_cliente === "Empresa") return true;
 
   const nombreEmpresa = (est?.empresa || "").trim().toLowerCase();
-  
+
   // Lista de palabras que indican que es independiente
   const esIndependiente = [
-    "", 
-    "particular", 
-    "independiente", 
-    "particular / independiente", 
-    "ninguna", 
+    "",
+    "particular",
+    "independiente",
+    "particular / independiente",
+    "ninguna",
     "n/a"
   ].includes(nombreEmpresa);
 
@@ -94,7 +94,7 @@ function msgDocs(est: any, userName: string): string {
       cuerpo += `\n❌ *Documentos rechazados (ilegibles o incorrectos):*\n`;
       rechazados.forEach(d => cuerpo += `• ${d}\n`);
     }
-    
+
     // Condicional: Recomendación Empresa vs Independiente
     cuerpo += empresa
       ? `\n_Le solicitamos coordinar con el área de SST o RR.HH. de su empresa para gestionar estos documentos a la brevedad. Sin ellos no es posible avanzar con la certificación._`
@@ -122,7 +122,7 @@ function msgPago(est: any, userName: string): string {
     cuerpo += `\n✅ Pago registrado correctamente por *$${valor}*. ¡Gracias!`;
   } else {
     cuerpo += `\n⚠️ El proceso presenta *pago pendiente*.\n\n💵 *Valor a cancelar: $${valor}*\n`;
-    
+
     // Condicional: Recomendación Empresa vs Independiente
     cuerpo += empresa
       ? `\nLe solicitamos escalar este tema con el área administrativa o financiera de su empresa. El comprobante debe incluir el *NIT de la empresa* para el registro contable. Una vez confirmado, programaremos el entrenamiento.`
@@ -155,14 +155,14 @@ function msgCita(est: any, userName: string, agendaBD: any[]): string {
     cuerpo += `📅 *Fecha:* ${bloque.fecha}\n`;
     cuerpo += `⏰ *Hora:* ${bloque.hora}\n`;
     cuerpo += `⏳ *Duración:* ${bloque.intensidad_horaria || "Por confirmar"}\n`;
-    
+
     // Condicional: Recomendación Empresa vs Independiente
     cuerpo += empresa
       ? `\nLes recordamos tener en cuenta:\n✅ Puntualidad (presentarse 15 min antes)\n✅ Documentación y pago al día\n✅ Ropa cómoda, zapatos cerrados\n\n*Cualquier novedad con la asistencia del personal, gestionarla a través de la empresa.*`
       : `\nTen en cuenta:\n✅ Llegar 15 minutos antes\n✅ Traer documentación completa y pago al día\n✅ Ropa cómoda, zapatos cerrados\n\n_Al ser tu proceso independiente, es tu responsabilidad asistir puntualmente. Si tienes algún contratiempo, avísanos con anticipación._ 📅`;
   } else {
     cuerpo += `\nAún no tienes fecha de entrenamiento asignada. `;
-    
+
     cuerpo += empresa
       ? `Una vez solucionados los pendientes, nos comunicaremos con la empresa para programar las fechas.`
       : `En cuanto tengamos todo al día y haya disponibilidad, te notificaremos tus fechas.`;
@@ -215,10 +215,10 @@ function msgCompleto(est: any, userName: string, agendaBD: any[]): string {
 // CONFIG TABS
 // -----------------------------------------------------------
 const TABS: { id: TabMensaje; label: string; icon: React.ReactNode }[] = [
-  { id: "docs",     label: "Documentos", icon: <FaFileAlt /> },
-  { id: "pago",     label: "Pago",       icon: <FaMoneyBillWave /> },
-  { id: "cita",     label: "Cita",       icon: <FaCalendarAlt /> },
-  { id: "completo", label: "Resumen",    icon: <FaCheckCircle /> },
+  { id: "docs", label: "Documentos", icon: <FaFileAlt /> },
+  { id: "pago", label: "Pago", icon: <FaMoneyBillWave /> },
+  { id: "cita", label: "Cita", icon: <FaCalendarAlt /> },
+  { id: "completo", label: "Resumen", icon: <FaCheckCircle /> },
 ];
 
 // -----------------------------------------------------------
@@ -235,9 +235,9 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
   const generarTexto = (tab: TabMensaje) => {
     if (!estudiante) return "";
     switch (tab) {
-      case "docs":     return msgDocs(estudiante, userName);
-      case "pago":     return msgPago(estudiante, userName);
-      case "cita":     return msgCita(estudiante, userName, agendaBD);
+      case "docs": return msgDocs(estudiante, userName);
+      case "pago": return msgPago(estudiante, userName);
+      case "cita": return msgCita(estudiante, userName, agendaBD);
       case "completo": return msgCompleto(estudiante, userName, agendaBD);
     }
   };
@@ -290,7 +290,7 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh] overflow-hidden border border-slate-200 animate-in zoom-in duration-200">
 
         {/* ── HEADER MODERNO ── */}
-        <div className="bg-gradient-to-r from-blue-800 to-indigo-900 px-6 py-5 flex items-center justify-between flex-shrink-0">
+        <div className="bg-blue-900 px-6 py-5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-xl bg-white/20 shadow-inner flex-shrink-0 border border-white/10">
               {estudiante.nombre?.charAt(0).toUpperCase()}
@@ -301,8 +301,8 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
               </p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {empresa
-                  ? <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-[10px] text-blue-100 font-medium tracking-wide"><FaBuilding size={10}/> {estudiante.empresa}</span>
-                  : <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-[10px] text-slate-100 font-medium tracking-wide"><FaUser size={10}/> Independiente</span>
+                  ? <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-[10px] text-blue-100 font-medium tracking-wide"><FaBuilding size={10} /> {estudiante.empresa}</span>
+                  : <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-[10px] text-slate-100 font-medium tracking-wide"><FaUser size={10} /> Independiente</span>
                 }
                 <span className="text-[10px] text-blue-200 font-mono truncate max-w-[180px] bg-black/10 px-2 py-0.5 rounded">
                   {estudiante.curso}
@@ -316,7 +316,7 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
             </div>
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white hover:bg-white/10 rounded-full p-2 transition-all duration-200">
-            <FaTimes size={18}/>
+            <FaTimes size={18} />
           </button>
         </div>
 
@@ -327,11 +327,10 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
               <button
                 key={tab.id}
                 onClick={() => setTabActiva(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide transition-all ${
-                  tabActiva === tab.id
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                    : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide transition-all ${tabActiva === tab.id
+                  ? "bg-blue-900 text-white shadow-md shadow-indigo-200"
+                  : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  }`}
               >
                 <span className={tabActiva === tab.id ? "text-indigo-200" : "text-slate-400"}>
                   {tab.icon}
@@ -346,7 +345,7 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
         <div className="px-6 py-4 flex-1 overflow-y-auto bg-slate-50/50">
           <div className="flex items-center justify-between mb-2.5">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <FaEdit size={10} className="text-indigo-400"/> VISTA PREVIA DEL MENSAJE (Editable)
+              <FaEdit size={10} className="text-indigo-400" /> VISTA PREVIA DEL MENSAJE (Editable)
             </p>
             <span className="text-[10px] text-slate-400 font-mono bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
               {textoEditado.length} chars
@@ -361,12 +360,11 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
           />
 
           {/* FILA EMAIL */}
-          <div className={`mt-4 flex items-center justify-between rounded-xl px-4 py-3 border bg-white shadow-sm ${
-            estudiante.email ? "border-slate-200" : "border-dashed border-slate-200"
-          }`}>
+          <div className={`mt-4 flex items-center justify-between rounded-xl px-4 py-3 border bg-white shadow-sm ${estudiante.email ? "border-slate-200" : "border-dashed border-slate-200"
+            }`}>
             <div className="flex items-center gap-3 min-w-0">
               <div className="bg-slate-100 p-2 rounded-lg text-slate-400">
-                <FaEnvelope size={12}/>
+                <FaEnvelope size={12} />
               </div>
               <span className={`text-xs font-mono truncate ${estudiante.email ? "text-slate-600 font-medium" : "text-slate-400 italic"}`}>
                 {estudiante.email || "Sin email registrado en el sistema"}
@@ -375,13 +373,12 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
             {estudiante.email && (
               <button
                 onClick={copiarEmail}
-                className={`flex-shrink-0 flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-2 rounded-lg ml-3 transition-all ${
-                  emailCopiado
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100"
-                }`}
+                className={`flex-shrink-0 flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-2 rounded-lg ml-3 transition-all ${emailCopiado
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100"
+                  }`}
               >
-                {emailCopiado ? <FaCheck size={10}/> : <FaCopy size={10}/>}
+                {emailCopiado ? <FaCheck size={10} /> : <FaCopy size={10} />}
                 {emailCopiado ? "Copiado" : "Copiar"}
               </button>
             )}
@@ -393,20 +390,19 @@ export function ModalReporte({ isOpen, onClose, estudiante, userName }: ModalRep
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={copiarMensaje}
-              className={`py-3.5 rounded-2xl font-bold text-[12px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all border-2 ${
-                msgCopiado
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50"
-              }`}
+              className={`py-3.5 rounded-2xl font-bold text-[12px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all border-2 ${msgCopiado
+                ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50"
+                }`}
             >
-              {msgCopiado ? <FaCheck size={14}/> : <FaCopy size={14}/>}
+              {msgCopiado ? <FaCheck size={14} /> : <FaCopy size={14} />}
               {msgCopiado ? "¡Mensaje Copiado!" : "Copiar Texto"}
             </button>
             <button
               onClick={enviarWhatsApp}
               className="py-3.5 bg-[#25D366] text-white rounded-2xl font-bold text-[12px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#1EBE5D] active:scale-95 transition-all shadow-lg shadow-emerald-200"
             >
-              <FaWhatsapp size={16}/> Enviar por WhatsApp
+              <FaWhatsapp size={16} /> Enviar por WhatsApp
             </button>
           </div>
         </div>

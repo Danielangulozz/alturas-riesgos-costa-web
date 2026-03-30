@@ -23,31 +23,63 @@ interface UseBusinessLogicProps {
 }
 
 export function useBusinessLogic({
-  fetchData, registrarLog, formData, setFormData, 
-  agendaData, setAgendaData, fechasSeleccionadas, 
+  fetchData, registrarLog, formData, setFormData,
+  agendaData, setAgendaData, fechasSeleccionadas,
   preciosEditados, agendaBD, catalogoCursos
 }: UseBusinessLogicProps) {
+
+  // Helper para calcular la edad (igual que en prerregistro público)
+  const calcularEdad = (fecha: string) => {
+    if (!fecha) return "";
+    const hoy = new Date();
+    const cumple = new Date(fecha);
+    let edad = hoy.getFullYear() - cumple.getFullYear();
+    const m = hoy.getMonth() - cumple.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
+    return edad.toString();
+  };
 
   // 1. REGISTRAR ESTUDIANTE (Matriculación Manual)
   const registrarEstudiante = async (e: React.FormEvent) => {
     e.preventDefault();
     const tId = toast.loading("Registrando estudiante...");
     try {
-      const { error } = await supabase.from('preinscripciones').insert([{
-        ...formData,
-        origen: 'preinscripciones',
-        etiqueta: 'MANUAL',
-        fecha_registro: new Date().toISOString()
-      }]);
-      
+      const cursoData = catalogoCursos.find(c => c.nombre_curso === formData.curso);
+
+      const payload = {
+        nombre: formData.nombre,
+        cedula: formData.cedula,
+        edad: calcularEdad(formData.fecha_nacimiento),
+        telefono: formData.telefono,
+        email: formData.email,
+        curso: formData.curso,
+        horario_preferencia: formData.horario_preferencia,
+        sexo: formData.sexo,
+        fecha_nacimiento: formData.fecha_nacimiento,
+        ciudad_residencia: formData.ciudad_residencia || formData.direccion,
+        barrio: formData.barrio,
+        tipo_cliente: formData.tipo_cliente || "Independiente",
+        empresa: formData.empresa || "Independiente",
+        nit: formData.nit || " ",
+        estado_proceso: "Pre-inscrito",
+        resultado_final: "Pendiente",
+        precio_pactado: formData.precio_pactado || (cursoData ? cursoData.precio_base.toString() : "0"),
+        estado_pago: formData.estado_pago || "Pendiente"
+      };
+
+      const { error } = await supabase.from('preinscripciones').insert([payload]);
+
       if (error) throw error;
-      
+
       toast.success("Estudiante registrado exitosamente", { id: tId });
       registrarLog("Matriculación Manual", `Registró a ${formData.nombre}`);
+
       setFormData({
-        nombre: "", cedula: "", email: "", telefono: "", curso: "", 
-        ciudad_residencia: "", barrio: "", fecha_nacimiento: "", 
-        sexo: "", horario_preferencia: "", empresa: "", nit: "", estadoPago: "Pendiente"
+        nombre: "", cedula: "", email: "", telefono: "", curso: "",
+        ciudad_residencia: "", barrio: "", fecha_nacimiento: "",
+        sexo: "", horario_preferencia: "", empresa: "", nit: "",
+        estado_pago: "Pendiente", precio_pactado: "",
+        tipo_cliente: "Independiente"
       });
       fetchData();
     } catch (err: any) {
@@ -87,9 +119,9 @@ export function useBusinessLogic({
     if (fechasSeleccionadas.length === 0) {
       return toast.error("Selecciona al menos una fecha de la agenda para proponer.");
     }
-    
+
     let mensaje = `Hola *${sol.nombre.trim()}* 👋,\nSomos el área de admisiones de *Alturas y Riesgos de la Costa*.\n\nRecibimos tu solicitud para el curso de *${sol.curso}*. `;
-    
+
     mensaje += `\n\n📅 *Fechas Disponibles Proyectadas:*\n`;
     fechasSeleccionadas.forEach((fId: string) => {
       const b = agendaBD.find((a: any) => a.id === fId);
@@ -107,7 +139,7 @@ export function useBusinessLogic({
   // 4. DESCARGAR PDF DE ASISTENCIA
   const descargarPDFAsistencia = (bloque: any, inscritos: any[]) => {
     if (inscritos.length === 0) return toast.error("No hay estudiantes para generar la planilla.");
-    
+
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("Planilla de Asistencia - Alturas y Riesgos de la Costa", 14, 20);

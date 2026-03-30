@@ -14,9 +14,9 @@ export default function Hero() {
   }, []);
 
   const badges = [
-    { icon: <FaShieldAlt size={10}/>,   text: "Cursos de alturas" },
-    { icon: <FaMapMarkerAlt size={10}/>, text: "Sincelejo, Sucre" },
-    { icon: <FaCheckCircle size={10}/>, text: "Certificado Digital" },
+    { icon: <FaShieldAlt size={10} />, text: "Cursos de alturas" },
+    { icon: <FaMapMarkerAlt size={10} />, text: "Sincelejo, Sucre" },
+    { icon: <FaCheckCircle size={10} />, text: "Certificado Digital" },
   ];
 
   return (
@@ -171,7 +171,7 @@ export default function Hero() {
                   className="btn-shimmer group relative overflow-hidden inline-flex items-center gap-3 px-10 py-4 rounded-full bg-[#FFD700] text-[#0F172A] font-black text-sm uppercase tracking-wider shadow-xl hover:bg-white hover:scale-105 transition-all duration-300"
                 >
                   Cotizar Ahora
-                  <FaArrowRight size={12} className="transition-transform group-hover:translate-x-1"/>
+                  <FaArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
                 </Link>
 
                 {/* Botón secundario — borde blanco translúcido */}
@@ -179,7 +179,7 @@ export default function Hero() {
                   href="/certificados"
                   className="group inline-flex items-center gap-3 px-10 py-4 rounded-full border-2 border-white/20 text-white font-bold text-sm uppercase tracking-wider hover:bg-white/10 hover:border-white transition-all duration-300 backdrop-blur-sm"
                 >
-                  <FaShieldAlt size={12} className="text-blue-300"/>
+                  <FaShieldAlt size={12} className="text-blue-300" />
                   Validar Certificado
                 </Link>
               </div>
@@ -199,8 +199,8 @@ export default function Hero() {
                   <Image
                     src="/logo-blanco.webp"
                     alt="Alturas y Riesgos de la Costa S.A.S"
-                    width={500}
-                    height={500}
+                    width={360}
+                    height={360}
                     priority
                     className="object-contain drop-shadow-2xl"
                   />

@@ -3,13 +3,13 @@ import type { Metadata, Viewport } from "next";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import Script from "next/script";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://alturasyriesgos.vercel.app/";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://alturasyriesgos.vercel.app";
 
 export const viewport: Viewport = {
   themeColor: "#1e293b",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // maximumScale eliminado: bloquea el zoom para usuarios con baja visión
 };
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     google: "3uB2wsfVjDE6Yj0AqUTUmzX-r6YFe8FKytmvs1Azp18",
   },
   title: {
-    default: "Curso de Alturas en Sincelejo",
+    default: "Alturas y Riesgos de la Costa",
     template: "%s | Alturas y Riesgos de la Costa"
   },
 
