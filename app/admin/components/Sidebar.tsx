@@ -1,7 +1,7 @@
 import React from "react";
 import {
   FaClipboardList, FaCalendarAlt, FaUserPlus, FaUsers, FaUserCheck,
-  FaUserCog, FaHistory, FaMoneyBillWave, FaUser
+  FaUserCog, FaHistory, FaMoneyBillWave, FaUser, FaChevronLeft, FaChevronRight
 } from "react-icons/fa";
 
 interface SidebarProps {
@@ -9,6 +9,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (v: boolean) => void;
   notificacionesNuevas: number;
   setNotificacionesNuevas: (count: number) => void;
   userRole: string;
@@ -16,6 +18,7 @@ interface SidebarProps {
 
 export function Sidebar({
   activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen,
+  isCollapsed, setIsCollapsed,
   notificacionesNuevas, setNotificacionesNuevas, userRole
 }: SidebarProps) {
   const menuItems = [
@@ -32,6 +35,11 @@ export function Sidebar({
 
   return (
     <>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
       {/* Overlay para móvil cuando el menú está abierto */}
       {isSidebarOpen && (
         <div 
@@ -41,64 +49,98 @@ export function Sidebar({
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-[#0F172A] text-slate-300 
-        transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 bg-[#0F172A] text-slate-300 
+        transform transition-all duration-300 ease-in-out
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0 lg:static lg:flex lg:flex-col shadow-2xl flex-shrink-0 border-r border-slate-800
+        ${isCollapsed ? "lg:w-20" : "lg:w-72 w-80"}
       `}>
         
         {/* LOGO AYR ADMIN */}
-        <div className="p-2 border-b border-slate-800/50 flex flex-col items-center gap-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-          <img src="/logo-blanco.webp" alt="AR COSTA" className="w-16 h-16 object-contain" />
-          <div className="text-center">
-            <h1 className="text-2xl font-black tracking-tighter">
-              <span className="text-[#FFD700]">A</span>
-              <span className="text-[#00558A]">Y</span>
-              <span className="text-[#C41E3A]">R</span>
-              <span className="ml-1 text-white font-light text-sm tracking-widest uppercase">Admin</span>
-            </h1>
-            <div className="flex h-[2px] w-full mt-1">
-              <div className="flex-1 bg-[#FFD700]"></div>
-              <div className="flex-1 bg-[#00558A]"></div>
-              <div className="flex-1 bg-[#C41E3A]"></div>
-            </div>
+        <div className="relative p-4 border-b border-slate-800/50 flex flex-col items-center gap-3 shrink-0">
+          <div className="cursor-pointer flex flex-col items-center" onClick={() => setActiveTab('dashboard')}>
+             <img 
+               src="/logo-blanco.webp" 
+               alt="AR COSTA" 
+               className={`transition-all duration-300 object-contain ${isCollapsed ? 'w-10 h-10' : 'w-16 h-16'}`} 
+             />
+             <div className={`text-center transition-all duration-300 ${isCollapsed ? 'opacity-0 h-0 scale-0 overflow-hidden' : 'opacity-100 mt-2'}`}>
+                <h1 className="text-2xl font-black tracking-tighter">
+                  <span className="text-[#FFD700]">A</span>
+                  <span className="text-[#00558A]">Y</span>
+                  <span className="text-[#C41E3A]">R</span>
+                  <span className="ml-1 text-white font-light text-sm tracking-widest uppercase">Admin</span>
+                </h1>
+                <div className="flex h-[2px] w-full mt-1">
+                  <div className="flex-1 bg-[#FFD700]"></div>
+                  <div className="flex-1 bg-[#00558A]"></div>
+                  <div className="flex-1 bg-[#C41E3A]"></div>
+                </div>
+             </div>
           </div>
+
+          {/* Botón Toggle para escritorio */}
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-10 bg-blue-600 text-white w-6 h-6 rounded-full items-center justify-center border-2 border-[#0F172A] shadow-lg hover:scale-110 transition-transform active:scale-95"
+          >
+            {isCollapsed ? <FaChevronRight size={10} /> : <FaChevronLeft size={10} />}
+          </button>
         </div>
 
         {/* NAVEGACIÓN */}
-        <nav className="flex-1 p-4 overflow-y-auto">
-          {menuItems.filter(item => item.roles.includes(userRole)).map((item) => (
-            <button 
-              key={item.id} 
-              onClick={() => { 
-                setActiveTab(item.id); 
-                setIsSidebarOpen(false); 
-                // Si entran a la base de datos, reiniciamos el contador a 0
-                if (item.id === 'lista') setNotificacionesNuevas(0); 
-              }} 
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-all ${
-                activeTab === item.id 
-                ? 'bg-blue-600 text-white shadow-lg' 
-                : 'hover:bg-white/5 text-slate-400'
-              }`}
-            >
-              <span className={activeTab === item.id ? 'text-[#FFD700]' : ''}>{item.icon}</span> 
-              <span className="flex-1 text-left">{item.label}</span>
+        <nav className="flex-1 p-3 overflow-y-auto overflow-x-hidden hide-scrollbar">
+          <div className="space-y-2">
+            {menuItems.filter(item => item.roles.includes(userRole)).map((item) => (
+              <button 
+                key={item.id} 
+                onClick={() => { 
+                  setActiveTab(item.id); 
+                  setIsSidebarOpen(false); 
+                  if (item.id === 'lista') setNotificacionesNuevas(0); 
+                }} 
+                title={isCollapsed ? item.label : ""}
+                className={`w-full flex items-center transition-all duration-200 group relative
+                  ${isCollapsed ? 'justify-center p-3.5' : 'gap-3 px-4 py-3.5'}
+                  rounded-2xl font-bold uppercase tracking-wider
+                  ${activeTab === item.id 
+                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-900/40 translate-x-1' 
+                    : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'
+                  }
+                `}
+              >
+                <span className={`transition-all duration-300 ${activeTab === item.id ? 'text-[#FFD700] scale-110' : 'group-hover:scale-110 text-xl'}`}>
+                  {item.icon}
+                </span> 
 
-              {/* BADGE ROJO */}
-              {item.id === 'lista' && notificacionesNuevas > 0 && (
-                <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-red-500/50 shadow-lg">
-                  {notificacionesNuevas}
+                <span className={`flex-1 text-left text-[11px] whitespace-nowrap transition-all duration-300 
+                  ${isCollapsed ? 'opacity-0 scale-0 w-0 absolute left-14' : 'opacity-100 relative'}`}>
+                  {item.label}
                 </span>
-              )}
-            </button>
-          ))}
+
+                {/* BADGE ROJO */}
+                {item.id === 'lista' && notificacionesNuevas > 0 && (
+                  <span className={`bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-red-500/50 shadow-lg 
+                    ${isCollapsed ? 'absolute -top-1 -right-1' : ''}`}>
+                    {notificacionesNuevas}
+                  </span>
+                )}
+
+                {/* Tooltip personalizado al hover si está colapsado */}
+                {isCollapsed && (
+                  <div className="absolute left-16 px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-xl border border-white/10">
+                    {item.label}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         </nav>
 
-        <div className="p-4 border-t border-slate-800/50 text-center">
-          <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">© 2026 Alturas y Riesgos de la Costa S.A.S</p>
+        <div className={`p-4 border-t border-slate-800/50 transition-all duration-300 ${isCollapsed ? 'opacity-0 scale-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+          <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase text-center">© 2026 Alturas y Riesgos de la Costa</p>
         </div>
       </aside>
     </>
   );
-}
+}

@@ -28,26 +28,58 @@ export function useBusinessLogic({
   preciosEditados, agendaBD, catalogoCursos
 }: UseBusinessLogicProps) {
 
+  // Helper para calcular la edad (igual que en prerregistro público)
+  const calcularEdad = (fecha: string) => {
+    if (!fecha) return "";
+    const hoy = new Date();
+    const cumple = new Date(fecha);
+    let edad = hoy.getFullYear() - cumple.getFullYear();
+    const m = hoy.getMonth() - cumple.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
+    return edad.toString();
+  };
+
   // 1. REGISTRAR ESTUDIANTE (Matriculación Manual)
   const registrarEstudiante = async (e: React.FormEvent) => {
     e.preventDefault();
     const tId = toast.loading("Registrando estudiante...");
     try {
-      const { error } = await supabase.from('preinscripciones').insert([{
-        ...formData,
-        origen: 'preinscripciones',
-        etiqueta: 'MANUAL',
-        fecha_registro: new Date().toISOString()
-      }]);
+      const cursoData = catalogoCursos.find(c => c.nombre_curso === formData.curso);
+
+      const payload = {
+        nombre: formData.nombre,
+        cedula: formData.cedula,
+        edad: calcularEdad(formData.fecha_nacimiento),
+        telefono: formData.telefono,
+        email: formData.email,
+        curso: formData.curso,
+        horario_preferencia: formData.horario_preferencia,
+        sexo: formData.sexo,
+        fecha_nacimiento: formData.fecha_nacimiento,
+        ciudad_residencia: formData.ciudad_residencia || formData.direccion,
+        barrio: formData.barrio,
+        tipo_cliente: formData.tipo_cliente || "Independiente",
+        empresa: formData.empresa || "Independiente",
+        nit: formData.nit || " ",
+        estado_proceso: "Pre-inscrito",
+        resultado_final: "Pendiente",
+        precio_pactado: formData.precio_pactado || (cursoData ? cursoData.precio_base.toString() : "0"),
+        estado_pago: formData.estado_pago || "Pendiente"
+      };
+
+      const { error } = await supabase.from('preinscripciones').insert([payload]);
 
       if (error) throw error;
 
       toast.success("Estudiante registrado exitosamente", { id: tId });
       registrarLog("Matriculación Manual", `Registró a ${formData.nombre}`);
+
       setFormData({
         nombre: "", cedula: "", email: "", telefono: "", curso: "",
         ciudad_residencia: "", barrio: "", fecha_nacimiento: "",
-        sexo: "", horario_preferencia: "", empresa: "", nit: "", estadoPago: "Pendiente"
+        sexo: "", horario_preferencia: "", empresa: "", nit: "",
+        estado_pago: "Pendiente", precio_pactado: "",
+        tipo_cliente: "Independiente"
       });
       fetchData();
     } catch (err: any) {
