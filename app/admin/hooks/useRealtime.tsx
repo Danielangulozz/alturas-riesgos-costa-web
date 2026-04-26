@@ -10,21 +10,34 @@ interface UseRealtimeProps {
   setNotifTickets: Dispatch<SetStateAction<number>>;
   userName?: string;
   userRole?: string;
+  tickets: any[];
+  preinscripciones: any[];
+  estudiantes: any[];
+  solicitudes: any[];
+  setNotifSolicitudes: Dispatch<SetStateAction<number>>;
 }
 
-export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTickets, userName, userRole }: UseRealtimeProps) {
+export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTickets, setNotifSolicitudes, userName, userRole, tickets, preinscripciones, estudiantes, solicitudes }: UseRealtimeProps) {
   // Usamos refs para que las funciones no disparen la suscripción cada vez que cambian
   const fetchDataRef = useRef(fetchData);
   const setActiveTabRef = useRef(setActiveTab);
   const setNotifListaRef = useRef(setNotifLista);
   const setNotifTicketsRef = useRef(setNotifTickets);
+  const setNotifSolicitudesRef = useRef(setNotifSolicitudes);
+
+  const prevTicketsLength = useRef(tickets.length);
+  const prevPreLength = useRef(preinscripciones.length);
+  const prevEstLength = useRef(estudiantes.length);
+  const prevSolLength = useRef(solicitudes.length);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     fetchDataRef.current = fetchData;
     setActiveTabRef.current = setActiveTab;
     setNotifListaRef.current = setNotifLista;
     setNotifTicketsRef.current = setNotifTickets;
-  }, [fetchData, setActiveTab, setNotifLista, setNotifTickets]);
+    setNotifSolicitudesRef.current = setNotifSolicitudes;
+  }, [fetchData, setActiveTab, setNotifLista, setNotifTickets, setNotifSolicitudes]);
 
   // Audio Ref
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -57,7 +70,7 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
     const manejarNotificacion = (payload: any, tipo: any) => {
       playNotificationSound();
 
-      if (['nuevo_registro', 'documentos', 'solicitud'].includes(tipo)) {
+      if (['nuevo_registro', 'documentos', 'solicitud', 'nuevo_estudiante'].includes(tipo)) {
         setNotifListaRef.current(prev => prev + 1);
       } else if (['ticket_nuevo', 'ticket_reabierto'].includes(tipo)) {
         setNotifTicketsRef.current(prev => prev + 1);
@@ -78,9 +91,9 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
         icono = <FaClipboardList size={18} />;
         gradienteBg = "bg-gradient-to-br from-emerald-100 to-teal-50 border-emerald-200";
         iconoColor = "text-emerald-600 bg-white";
-      } else if (tipo === 'nuevo_registro') {
-        titulo = "Nuevo Registro";
-        subtitulo = `${nombre} se pre-inscribió.`;
+      } else if (tipo === 'nuevo_registro' || tipo === 'nuevo_estudiante') {
+        titulo = tipo === 'nuevo_estudiante' ? "Nuevo Estudiante" : "Nuevo Registro";
+        subtitulo = tipo === 'nuevo_estudiante' ? `${nombre} fue matriculado.` : `${nombre} se pre-inscribió.`;
         icono = <FaUserPlus size={18} />;
         gradienteBg = "bg-gradient-to-br from-indigo-100 to-blue-50 border-indigo-200";
         iconoColor = "text-indigo-600 bg-white";
@@ -140,44 +153,17 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
     };
 
     const conectarRealtime = () => {
-      // Si ya hemos fallado mucho, nos quedamos en Polling rápido y no molestamos más
-      if (reintentos > 3) {
-        iniciarPolling(5000); 
-        return;
-      }
+      // Configuramos el polling corto siempre como respaldo
+      iniciarPolling(7000); // 7 segundos para no saturar
 
       supabase.removeAllChannels();
       
       channel = supabase
         .channel('live_db')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'preinscripciones' }, (payload) => {
-          console.log("⚡ [Realtime] Cambio en registros");
-          manejarNotificacion(payload, payload.eventType === 'INSERT' ? 'nuevo_registro' : 'documentos');
+          fetchDataRef.current(); // Dejamos que el polling manual lo detecte para evitar duplicados
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets_soporte' }, (payload) => {
-          console.log("⚡ [Realtime] Cambio en tickets");
-          if (payload.eventType === 'INSERT') manejarNotificacion(payload, 'ticket_nuevo');
-          else fetchDataRef.current();
-        })
-        .subscribe(async (status) => {
-          console.log("📡 Estado:", status);
-          
-          if (status === 'SUBSCRIBED') {
-            reintentos = 0;
-            console.log("✅ ¡CONECTADO AL 100%!");
-            // Si conecta, bajamos el polling a 30s solo por si acaso
-            iniciarPolling(30000);
-          }
-
-          if (status === 'TIMED_OUT') {
-            reintentos++;
-            iniciarPolling(5000); // Falla Realtime -> Polling cada 5s
-            if (reintentos <= 3) {
-              console.warn(`retry ${reintentos}...`);
-              setTimeout(conectarRealtime, 5000);
-            }
-          }
-        });
+        .subscribe();
     };
 
     conectarRealtime();
@@ -187,4 +173,91 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
       if (fallbackInterval) clearInterval(fallbackInterval);
     };
   }, [userName, userRole]);
+
+  // Efecto para detectar cambios por Polling
+  useEffect(() => {
+    if (isFirstRender.current) {
+      prevTicketsLength.current = tickets.length;
+      prevPreLength.current = preinscripciones.length;
+      prevEstLength.current = estudiantes.length;
+      prevSolLength.current = solicitudes.length;
+      isFirstRender.current = false;
+      return;
+    }
+
+    const esReciente = (fechaISO: string) => {
+      if (!fechaISO) return false;
+      return (new Date().getTime() - new Date(fechaISO).getTime()) < 15000; // 15 segundos
+    };
+
+    if (tickets.length > prevTicketsLength.current) {
+      const nuevoTicket = tickets[0];
+      if (nuevoTicket && esReciente(nuevoTicket.created_at)) {
+        setNotifTicketsRef.current(prev => prev + 1);
+        if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
+        toast.success(`Nuevo Ticket: ${nuevoTicket?.usuario || 'Alguien'} reportó algo.`, { duration: 5000 });
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try { 
+            const n = new window.Notification('🔔 Nuevo Ticket', { body: `${nuevoTicket?.usuario || 'Alguien'} reportó algo.`, icon: '/LOGOSOLO.png', requireInteraction: true });
+            n.onclick = () => { window.focus(); setActiveTabRef.current('tickets'); n.close(); };
+          } catch (e) { }
+        }
+      }
+    }
+
+    if (preinscripciones.length > prevPreLength.current) {
+      const nuevoPre = preinscripciones[0];
+      if (nuevoPre && esReciente(nuevoPre.created_at || nuevoPre.fecha_registro)) {
+        setNotifListaRef.current(prev => prev + 1);
+        if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
+        toast.success(`Nueva Preinscripción Web: ${nuevoPre?.nombre || 'Alguien'}`, { duration: 5000 });
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try { 
+            const n = new window.Notification('🔔 Nuevo Registro', { body: `${nuevoPre?.nombre || 'Alguien'} se pre-inscribió.`, icon: '/LOGOSOLO.png', requireInteraction: true });
+            n.onclick = () => { window.focus(); setActiveTabRef.current('lista'); n.close(); };
+          } catch (e) { }
+        }
+      }
+    }
+
+    if (estudiantes.length > prevEstLength.current) {
+      const nuevoEst = estudiantes[0];
+      if (nuevoEst && esReciente(nuevoEst.created_at)) {
+        setNotifListaRef.current(prev => prev + 1);
+        if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
+        toast.success(`Nuevo Estudiante Matriculado: ${nuevoEst?.nombre || 'Alguien'}`, { duration: 5000 });
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try { 
+            const n = new window.Notification('🔔 Nuevo Estudiante', { body: `${nuevoEst?.nombre || 'Alguien'} fue matriculado.`, icon: '/LOGOSOLO.png', requireInteraction: true });
+            n.onclick = () => { window.focus(); setActiveTabRef.current('lista'); n.close(); };
+          } catch (e) { }
+        }
+      }
+    }
+
+    if (solicitudes.length > prevSolLength.current) {
+      const nuevaSol = solicitudes[0];
+      if (nuevaSol && esReciente(nuevaSol.created_at)) {
+        setNotifSolicitudesRef.current(prev => prev + 1);
+        if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
+        toast.success(`Nueva Solicitud: ${nuevaSol?.nombre || 'Alguien'}`, { 
+          duration: 5000,
+          style: { background: '#8B5CF6', color: '#fff' },
+          iconTheme: { primary: '#fff', secondary: '#8B5CF6' }
+        });
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try { 
+            const n = new window.Notification('🟣 Nueva Solicitud', { body: `${nuevaSol?.nombre || 'Alguien'} envió una solicitud.`, icon: '/LOGOSOLO.png', requireInteraction: true });
+            n.onclick = () => { window.focus(); setActiveTabRef.current('solicitudes'); n.close(); };
+          } catch (e) { }
+        }
+      }
+    }
+
+    prevTicketsLength.current = tickets.length;
+    prevPreLength.current = preinscripciones.length;
+    prevEstLength.current = estudiantes.length;
+    prevSolLength.current = solicitudes.length;
+
+  }, [tickets, preinscripciones, estudiantes, solicitudes]);
 }

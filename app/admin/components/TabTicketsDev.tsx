@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaTicketAlt, FaCheckCircle, FaSpinner, FaReply, FaUser, FaShieldAlt, FaTrashAlt, FaClock } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
@@ -14,6 +14,20 @@ export function TabTicketsDev({ tickets, fetchData, triggerConfirm }: TabTickets
   const [enviando, setEnviando] = useState<string | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [imagenSeleccionada, setImagenSeleccionada] = useState<string | null>(null);
+  const [ticketsVistos, setTicketsVistos] = useState<string[]>([]);
+
+  useEffect(() => {
+    const vistos = localStorage.getItem('tickets_vistos');
+    if (vistos) setTicketsVistos(JSON.parse(vistos));
+  }, []);
+
+  const marcarComoVisto = (id: string) => {
+    if (!ticketsVistos.includes(id)) {
+      const nuevosVistos = [...ticketsVistos, id];
+      setTicketsVistos(nuevosVistos);
+      localStorage.setItem('tickets_vistos', JSON.stringify(nuevosVistos));
+    }
+  };
 
   const formatFechaHora = (isoString: string) => {
     if (!isoString) return "";
@@ -108,7 +122,11 @@ export function TabTicketsDev({ tickets, fetchData, triggerConfirm }: TabTickets
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {tickets.map((t) => (
-          <div key={t.id} className={`group rounded-3xl border ${t.estado === 'Resuelto' ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md`}>
+          <div 
+            key={t.id} 
+            onClick={() => marcarComoVisto(t.id)}
+            className={`group rounded-3xl border ${t.estado === 'Resuelto' ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md cursor-pointer`}
+          >
             {/* Header del Ticket */}
             <div className={`p-4 border-b flex justify-between items-center ${t.estado === 'Resuelto' ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
               <div className="flex items-center gap-2">
@@ -122,9 +140,21 @@ export function TabTicketsDev({ tickets, fetchData, triggerConfirm }: TabTickets
                 <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg ${t.estado === 'Resuelto' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   {t.estado}
                 </span>
+                
+                {t.estado === 'Pendiente' && t.mensaje.includes('[Reabierto]') && !ticketsVistos.includes(t.id) && (
+                  <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg bg-emerald-500 text-white shadow-sm flex items-center gap-1">
+                    Reabierto
+                  </span>
+                )}
+                
+                {t.estado === 'Pendiente' && !t.mensaje.includes('[Reabierto]') && !ticketsVistos.includes(t.id) && (
+                  <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg bg-emerald-500 text-white shadow-sm flex items-center gap-1">
+                    Nuevo
+                  </span>
+                )}
               </div>
               <button 
-                onClick={() => eliminarTicket(t.id)}
+                onClick={(e) => { e.stopPropagation(); eliminarTicket(t.id); }}
                 disabled={eliminando === t.id}
                 className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-2 transition-all"
                 title="Eliminar Ticket"

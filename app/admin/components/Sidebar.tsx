@@ -15,6 +15,8 @@ interface SidebarProps {
   setNotifLista: (count: number) => void;
   notifTickets: number;
   setNotifTickets: (count: number) => void;
+  notifSolicitudes: number;
+  setNotifSolicitudes: (count: number) => void;
   userRole: string;
 }
 
@@ -23,6 +25,7 @@ export function Sidebar({
   isCollapsed, setIsCollapsed,
   notifLista, setNotifLista,
   notifTickets, setNotifTickets,
+  notifSolicitudes, setNotifSolicitudes,
   userRole
 }: SidebarProps) {
   const menuItems = [
@@ -107,7 +110,8 @@ export function Sidebar({
                 onClick={() => {
                   setActiveTab(item.id);
                   setIsSidebarOpen(false);
-                  if (item.id === 'lista' || item.id === 'solicitudes') setNotifLista(0);
+                  if (item.id === 'lista') setNotifLista(0);
+                  if (item.id === 'solicitudes') setNotifSolicitudes(0);
                   if (item.id === 'tickets') setNotifTickets(0);
                 }}
                 className={`
@@ -138,6 +142,14 @@ export function Sidebar({
                   <span className={`bg-amber-500/20 text-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded-lg border border-amber-500/20 absolute 
                     ${isCollapsed ? '-top-1 -right-1' : 'right-4 animate-pulse'}`}>
                     {notifLista}
+                  </span>
+                )}
+
+                {/* Badge para Solicitudes */}
+                {item.id === 'solicitudes' && notifSolicitudes > 0 && (
+                  <span className={`bg-purple-500/20 text-purple-400 text-[10px] font-black px-1.5 py-0.5 rounded-lg border border-purple-500/20 absolute 
+                    ${isCollapsed ? '-top-1 -right-1' : 'right-4 animate-pulse'}`}>
+                    {notifSolicitudes}
                   </span>
                 )}
 

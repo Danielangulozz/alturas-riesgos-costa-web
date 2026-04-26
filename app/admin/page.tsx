@@ -93,6 +93,7 @@ export default function AdminDashboard() {
   const [datosARL, setDatosARL] = useState({ nombre: "", nit: "" });
   const [notifLista, setNotifLista] = useState(0);
   const [notifTickets, setNotifTickets] = useState(0);
+  const [notifSolicitudes, setNotifSolicitudes] = useState(0);
   // busqueda está en useData ahora
   const [darkMode, setDarkMode] = useState(false);
   const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
@@ -164,8 +165,13 @@ export default function AdminDashboard() {
     setActiveTab, 
     setNotifLista, 
     setNotifTickets, 
+    setNotifSolicitudes,
     userName: userName || undefined, 
-    userRole: userRole || undefined 
+    userRole: userRole || undefined,
+    tickets,
+    preinscripciones,
+    estudiantes,
+    solicitudes
   });
 
   // --- DARK MODE: Sincronizar con clase del <html> ---
@@ -330,7 +336,6 @@ export default function AdminDashboard() {
         {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
       </button>
 
-      {/* SIDEBAR */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -342,6 +347,8 @@ export default function AdminDashboard() {
         setNotifLista={setNotifLista}
         notifTickets={notifTickets}
         setNotifTickets={setNotifTickets}
+        notifSolicitudes={notifSolicitudes}
+        setNotifSolicitudes={setNotifSolicitudes}
         userRole={userRole}
       />
 
