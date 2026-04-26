@@ -63,9 +63,9 @@ export default function AdminDashboard() {
   // --- HOOKS ---
   const {
     isRefreshing, isLoadingMore, totalRegistros, listaPerfiles, estudiantes, preinscripciones,
-    solicitudes, agendaBD, catalogoCursos, logsRecientes, fetchData,
+    solicitudes, agendaBD, catalogoCursos, logsRecientes, tickets, setTickets, fetchData,
     historialInscripciones, hasMoreLogs, fetchMasLogs,
-    hasMoreEstudiantes, fetchMasEstudiantes
+    hasMoreEstudiantes, fetchMasEstudiantes, busqueda, setBusqueda, updateLocalItem
   } = useData();
 
   const {
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
     actualizarPrecioMaestro,
     ejecutarCambioEstado,
     toggleVerificacion,
-  } = useAdminActions({ fetchData, userName, userRole, registrarLog });
+  } = useAdminActions({ fetchData, userName, userRole, registrarLog, updateLocalItem });
 
   // --- ESTADOS ---
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -91,8 +91,9 @@ export default function AdminDashboard() {
   const [formEquipo, setFormEquipo] = useState({ email: "", pass: "", nombre: "" });
   const [modalARL, setModalARL] = useState<{ isOpen: boolean, item: any }>({ isOpen: false, item: null });
   const [datosARL, setDatosARL] = useState({ nombre: "", nit: "" });
-  const [notificacionesNuevas, setNotificacionesNuevas] = useState(0);
-  const [busqueda, setBusqueda] = useState("");
+  const [notifLista, setNotifLista] = useState(0);
+  const [notifTickets, setNotifTickets] = useState(0);
+  // busqueda está en useData ahora
   const [darkMode, setDarkMode] = useState(false);
   const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
   const [preciosEditados, setPreciosEditados] = useState<{ [key: string]: string }>({});
@@ -158,7 +159,14 @@ export default function AdminDashboard() {
     return () => clearTimeout(timeout);
   }, [busqueda, loading, fetchData]);
 
-  useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas, userName: userName || undefined, userRole: userRole || undefined });
+  useRealtime({ 
+    fetchData, 
+    setActiveTab, 
+    setNotifLista, 
+    setNotifTickets, 
+    userName: userName || undefined, 
+    userRole: userRole || undefined 
+  });
 
   // --- DARK MODE: Sincronizar con clase del <html> ---
   useEffect(() => {
@@ -330,8 +338,10 @@ export default function AdminDashboard() {
         setIsSidebarOpen={setIsSidebarOpen}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
-        notificacionesNuevas={notificacionesNuevas}
-        setNotificacionesNuevas={setNotificacionesNuevas}
+        notifLista={notifLista}
+        setNotifLista={setNotifLista}
+        notifTickets={notifTickets}
+        setNotifTickets={setNotifTickets}
         userRole={userRole}
       />
 
@@ -591,7 +601,7 @@ export default function AdminDashboard() {
               )}
 
               {activeTab === "tickets" && (
-                <TabTicketsDev />
+                <TabTicketsDev tickets={tickets} fetchData={fetchData} triggerConfirm={triggerConfirm} />
               )}
             </motion.div>
           </AnimatePresence>

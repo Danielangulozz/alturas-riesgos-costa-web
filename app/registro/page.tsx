@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import {
   FaCloudUploadAlt, FaCheckCircle, FaSearch, FaFilePdf,
   FaShieldAlt, FaInfoCircle, FaArrowRight, FaExternalLinkAlt,
-  FaIdCard, FaSync
+  FaIdCard, FaSync, FaTimesCircle
 } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -86,59 +86,59 @@ function ProgressBar({ total, listos }: { total: number; listos: number }) {
 
 // ─── Tarjeta de documento ───
 function DocCard({
-  codigoDoc, infoDoc, urlArchivo, uploading, onSubida
+  codigoDoc, infoDoc, urlArchivo, uploading, onSubida, verificacion
 }: {
   codigoDoc: string; infoDoc: DocumentoInfo; urlArchivo?: string;
   uploading: string | null; onSubida: (e: React.ChangeEvent<HTMLInputElement>, cod: string) => void;
+  verificacion?: { status: string; by?: string; at?: string };
 }) {
   const estaListo  = !!urlArchivo;
   const subiendo   = uploading === codigoDoc;
   const bloqueado  = !!uploading && !subiendo;
+  
+  const status = verificacion?.status || (estaListo ? 'enviado' : 'pendiente');
+
+  // Definición de mapas de estilos para evitar circularidad
+  const estilosMap = {
+    pendiente: { border: "border-slate-100 bg-white", header: "bg-slate-100 text-slate-400", badge: "bg-slate-100 text-slate-400", text: "Pendiente", icon: <FaFilePdf size={14}/> },
+    enviado:   { border: "border-blue-200 bg-blue-50/40", header: "bg-blue-100 text-blue-600", badge: "bg-blue-100 text-blue-700", text: "Enviado", icon: <FaCloudUploadAlt size={14}/> },
+    approved:  { border: "border-emerald-200 bg-emerald-50/40", header: "bg-emerald-100 text-emerald-600", badge: "bg-emerald-600 text-white", text: "Aprobado", icon: <FaCheckCircle size={14}/> },
+    rejected:  { border: "border-red-200 bg-red-50/40", header: "bg-red-100 text-red-600", badge: "bg-red-600 text-white", text: "Rechazado", icon: <FaTimesCircle size={14}/> }
+  };
+
+  const estilos = estilosMap[status as keyof typeof estilosMap] || estilosMap.pendiente;
 
   return (
-    <div className={`group relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
-      estaListo
-        ? "border-emerald-200 bg-emerald-50/40"
-        : "border-slate-100 bg-white hover:border-blue-200 hover:shadow-md"
-    }`}>
-
+    <div className={`group relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${estilos.border}`}>
       {/* Línea de color superior */}
-      <div className={`absolute top-0 left-0 h-0.5 transition-all duration-500 ${
-        estaListo ? "w-full bg-gradient-to-r from-emerald-400 to-teal-400"
-                  : "w-0 bg-gradient-to-r from-blue-600 to-cyan-500 group-hover:w-full"
+      <div className={`absolute top-0 left-0 h-0.5 transition-all duration-500 w-full ${
+        status === 'approved' ? 'bg-emerald-500' : status === 'rejected' ? 'bg-red-500' : status === 'enviado' ? 'bg-blue-500' : 'bg-transparent group-hover:bg-slate-200'
       }`} />
 
       <div className="p-5">
-        {/* Header de la tarjeta */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start gap-3">
-            <div className={`p-2.5 rounded-xl flex-shrink-0 transition-colors ${
-              estaListo ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600"
-            }`}>
-              {estaListo ? <FaCheckCircle size={14}/> : <FaFilePdf size={14}/>}
+            <div className={`p-2.5 rounded-xl flex-shrink-0 transition-colors ${estilos.header}`}>
+              {estilos.icon}
             </div>
             <div>
               <p className="text-xs font-black text-slate-700 leading-tight">{infoDoc.label}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">{infoDoc.desc}</p>
             </div>
           </div>
-
-          {/* Badge estado */}
-          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${
-            estaListo ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
-          }`}>
-            {estaListo ? "✓ Listo" : "Pendiente"}
+          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${estilos.badge}`}>
+            {estilos.text}
           </span>
         </div>
 
-        {/* Botón de subida */}
         <label className={`
           relative flex items-center justify-center gap-2 w-full py-3 rounded-xl
           cursor-pointer font-black text-[10px] uppercase tracking-widest
           transition-all duration-200 overflow-hidden
           ${bloqueado   ? "opacity-40 cursor-not-allowed bg-slate-100 text-slate-400"
           : subiendo    ? "bg-slate-100 text-slate-500 cursor-wait"
-          : estaListo   ? "bg-white border-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+          : status === 'rejected' ? "bg-red-600 text-white hover:bg-red-700 shadow-lg"
+          : estaListo   ? "bg-white border-2 border-blue-200 text-blue-600 hover:bg-blue-50"
                         : "bg-slate-900 text-white hover:bg-blue-700 shadow-lg hover:-translate-y-0.5"}
         `}>
           {subiendo ? (
@@ -149,8 +149,7 @@ function DocCard({
           ) : (
             <>
               <FaCloudUploadAlt size={13}/>
-              {estaListo ? "Reemplazar" : "Subir Archivo"}
-              {!estaListo && !bloqueado && <FaArrowRight size={9} className="ml-1"/>}
+              {status === 'rejected' ? "Subir de nuevo" : estaListo ? "Reemplazar" : "Subir Archivo"}
             </>
           )}
           <input
@@ -162,7 +161,6 @@ function DocCard({
           />
         </label>
 
-        {/* Ver archivo actual */}
         {estaListo && (
           <a
             href={urlArchivo}
@@ -201,10 +199,27 @@ function ContenidoSubida() {
 
   const buscarPorId = async (id: string) => {
     setLoading(true);
-    const { data } = await supabase.from("preinscripciones").select("*").eq("id", id).maybeSingle();
-    if (data) { setDatosUsuario(data); toast.success(`Hola, ${data.nombre.split(" ")[0]} 👋`); }
-    else toast.error("No encontramos tu registro.");
-    setLoading(false);
+    try {
+      // Intentar en preinscripciones
+      const { data: pre } = await supabase.from("preinscripciones").select("*").eq("id", id).maybeSingle();
+      if (pre) {
+        setDatosUsuario({ ...pre, tabla_origen: 'preinscripciones' });
+        toast.success(`Hola, ${pre.nombre.split(" ")[0]} 👋`);
+        return;
+      }
+      // Intentar en estudiantes
+      const { data: est } = await supabase.from("estudiantes").select("*").eq("id", id).maybeSingle();
+      if (est) {
+        setDatosUsuario({ ...est, tabla_origen: 'estudiantes' });
+        toast.success(`Hola, ${est.nombre.split(" ")[0]} 👋`);
+      } else {
+        toast.error("No encontramos tu registro.");
+      }
+    } catch (err) {
+      console.error("Error buscarPorId:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const buscarPorCedula = async (e?: React.FormEvent) => {
@@ -213,17 +228,35 @@ function ContenidoSubida() {
     if (!cedula) return toast.error("Escribe tu cédula");
     setLoading(true);
     try {
-      const { data, error } = await supabase.from("preinscripciones")
+      console.log("Buscando cédula:", cedula);
+      // 1. Buscar en preinscripciones
+      const { data: pre, error: preError } = await supabase.from("preinscripciones")
         .select("*").eq("cedula", cedula).maybeSingle();
-      if (error || !data) {
-        toast.error("No encontramos tu registro.");
-        setDatosUsuario(null);
-      } else {
-        setDatosUsuario(data);
-        toast.success(`Hola, ${data.nombre.split(" ")[0]} 👋`);
+      
+      if (pre) {
+        console.log("Encontrado en preinscripciones");
+        setDatosUsuario({ ...pre, tabla_origen: 'preinscripciones' });
+        toast.success(`Hola, ${pre.nombre.split(" ")[0]} 👋`);
+        return;
       }
-    } catch { toast.error("Error de conexión"); }
-    finally  { setLoading(false); }
+
+      // 2. Buscar en estudiantes
+      const { data: est, error: estError } = await supabase.from("estudiantes")
+        .select("*").eq("cedula", cedula).maybeSingle();
+
+      if (est) {
+        console.log("Encontrado en estudiantes");
+        setDatosUsuario({ ...est, tabla_origen: 'estudiantes' });
+        toast.success(`Hola, ${est.nombre.split(" ")[0]} 👋`);
+      } else {
+        toast.error("No encontramos tu registro. Verifica el número.");
+      }
+    } catch (err) { 
+      console.error("Error búsqueda:", err);
+      toast.error("Error de conexión"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const obtenerRequeridos = (curso: string) => {
@@ -241,41 +274,72 @@ function ContenidoSubida() {
     if (!e.target.files?.length || !datosUsuario) return;
     const file   = e.target.files[0];
     const colBD  = MAPA_DOCUMENTOS[codigoDoc].col;
+    const tabla  = (datosUsuario as any).tabla_origen || 'preinscripciones';
 
-    if (file.size > 6 * 1024 * 1024) return toast.error("Archivo muy pesado. Máx 6MB.");
+    console.log("Iniciando subida:", { codigoDoc, colBD, tabla, fileName: file.name });
+
+    if (file.size > 10 * 1024 * 1024) return toast.error("Archivo muy pesado. Máx 10MB.");
 
     setUploading(codigoDoc);
     const tId = toast.loading("Subiendo documento...", { position: "bottom-center" });
 
     try {
-      const ext = file.type === "application/pdf" ? "pdf"
-                : file.type === "image/png"        ? "png" : "jpg";
+      const ext = file.name.split('.').pop() || 'jpg';
       const fileName = `${datosUsuario.cedula}/${codigoDoc}_${Date.now()}.${ext}`;
-      const buffer   = await file.arrayBuffer();
 
+      // 1. SUBIR A STORAGE
+      console.log("Subiendo a Storage bucket 'docs_students'...");
       const { error: uploadError } = await supabase.storage
         .from("docs_students")
-        .upload(fileName, buffer, { cacheControl: "3600", upsert: true, contentType: file.type });
+        .upload(fileName, file, { 
+          cacheControl: "3600", 
+          upsert: true,
+          contentType: file.type 
+        });
 
-      if (uploadError) throw new Error("Error al subir a la nube.");
+      if (uploadError) {
+        console.error("Storage Error:", uploadError);
+        alert(`Error Storage: ${uploadError.message}`);
+        throw new Error(`Error al subir archivo: ${uploadError.message}`);
+      }
 
+      console.log("Subida exitosa. Obteniendo URL pública...");
       const { data: urlData } = supabase.storage.from("docs_students").getPublicUrl(fileName);
+      console.log("URL generada:", urlData.publicUrl);
+      if (!datosUsuario.id) throw new Error("ID de usuario no encontrado. Recarga la página.");
 
-      const { data: upd, error: dbError } = await supabase
-        .from("preinscripciones")
+      // 2. ACTUALIZAR BASE DE DATOS
+      console.log(`Actualizando tabla '${tabla}' con ID ${datosUsuario.id}...`);
+      const { error: dbError } = await supabase
+        .from(tabla)
         .update({ [colBD]: urlData.publicUrl })
-        .eq("id", datosUsuario.id)
-        .select();
+        .eq("id", datosUsuario.id);
 
-      if (dbError || !upd?.length) throw new Error("No se pudo guardar. Revisa conexión.");
+      if (dbError) {
+        console.error("Database Update Error:", dbError);
+        alert(`Error Base de Datos: ${dbError.message}\nCódigo: ${dbError.code}\nDetalles: ${dbError.details}`);
+        throw new Error(`Error al guardar: ${dbError.message}`);
+      }
 
-      setDatosUsuario(prev => prev ? { ...prev, [colBD]: urlData.publicUrl } : null);
+      console.log("Actualización de base de datos exitosa.");
+      
+      // Actualizar estado local inmediatamente
+      setDatosUsuario(prev => {
+        if (!prev) return null;
+        const nuevo = { ...prev, [colBD]: urlData.publicUrl };
+        console.log("Nuevo estado local del usuario:", nuevo);
+        return nuevo;
+      });
+
       toast.success("¡Documento guardado!", { id: tId });
+      
     } catch (err: any) {
-      toast.error(err.message || "Error desconocido", { id: tId });
+      console.error("Proceso fallido:", err);
+      alert(`Fallo Total: ${err.message}`);
+      toast.error(err.message || "Error al subir", { id: tId });
     } finally {
       setUploading(null);
-      e.target.value = "";
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -381,7 +445,10 @@ function ContenidoSubida() {
                     {datosUsuario.nombre.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Postulante</p>
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">
+                      {datosUsuario.tabla_origen === 'estudiantes' ? 'Estudiante Activo' : 'Pre-inscrito'} 
+                      <span className="ml-2 text-slate-500 font-mono text-[8px]">ID: {datosUsuario.id.substring(0,8)}</span>
+                    </p>
                     <h2 className="text-base font-black text-white leading-none uppercase" style={{ letterSpacing: "-0.01em" }}>
                       {datosUsuario.nombre}
                     </h2>
@@ -405,17 +472,29 @@ function ContenidoSubida() {
 
           {/* Grid de documentos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {requeridos.map((cod, idx) => (
-              <AnimateIn key={cod} from="fadeUp" delay={idx * 70}>
-                <DocCard
-                  codigoDoc={cod}
-                  infoDoc={MAPA_DOCUMENTOS[cod]}
-                  urlArchivo={datosUsuario[MAPA_DOCUMENTOS[cod].col]}
-                  uploading={uploading}
-                  onSubida={manejarSubida}
-                />
-              </AnimateIn>
-            ))}
+            {requeridos.map((cod, idx) => {
+              let verificacion = {};
+              try {
+                const rawV = datosUsuario.doc_verification;
+                const vObj = typeof rawV === 'string' ? JSON.parse(rawV) : rawV;
+                verificacion = vObj?.[MAPA_DOCUMENTOS[cod].col] || {};
+              } catch (e) {
+                verificacion = {};
+              }
+
+              return (
+                <AnimateIn key={cod} from="fadeUp" delay={idx * 70}>
+                  <DocCard
+                    codigoDoc={cod}
+                    infoDoc={MAPA_DOCUMENTOS[cod]}
+                    urlArchivo={datosUsuario[MAPA_DOCUMENTOS[cod].col]}
+                    uploading={uploading}
+                    onSubida={manejarSubida}
+                    verificacion={verificacion as any}
+                  />
+                </AnimateIn>
+              );
+            })}
           </div>
 
           {/* Info */}

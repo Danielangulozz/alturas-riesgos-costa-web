@@ -6,9 +6,10 @@ interface UseAdminActionsProps {
   userName: string;
   userRole: string;
   registrarLog: (accion: string, detalles: string) => Promise<void>;
+  updateLocalItem: (id: string, origen: string, newData: any) => void;
 }
 
-export function useAdminActions({ fetchData, userName, userRole, registrarLog }: UseAdminActionsProps) {
+export function useAdminActions({ fetchData, userName, userRole, registrarLog, updateLocalItem }: UseAdminActionsProps) {
   
   // 1. BORRAR REGISTRO
   const borrarRegistro = async (tabla: string, id: string) => {
@@ -26,10 +27,15 @@ export function useAdminActions({ fetchData, userName, userRole, registrarLog }:
     if (userRole !== 'admin_general' && userRole !== 'developer' && (campo === 'precio_final' || campo === 'precio_pactado')) {
       return toast.error("⛔ Solo Admin General edita precios.");
     }
+
+    // Actualización optimista local
+    updateLocalItem(id, tabla, { [campo]: valor });
+
     const { error } = await supabase.from(tabla).update({ [campo]: valor }).eq('id', id);
     if (error) { 
       console.error("Error actualizando:", error); 
       toast.error(`Error: ${error.message}`); 
+      fetchData(); // Revertir si hay error
     } else { 
       toast.success("Actualizado"); 
       
@@ -48,7 +54,6 @@ export function useAdminActions({ fetchData, userName, userRole, registrarLog }:
       }
 
       await registrarLog(nombreAccion, detallesAccion); 
-      fetchData(); 
     }
   };
 
@@ -77,6 +82,9 @@ export function useAdminActions({ fetchData, userName, userRole, registrarLog }:
       [docId]: { status: newState, by: userName, at: timestamp }
     };
 
+    // Actualización optimista local
+    updateLocalItem(item.id, item.origen, { doc_verification: newVerificationData });
+
     const { error } = await supabase.from(item.origen).update({ doc_verification: newVerificationData }).eq('id', item.id);
 
     if (!error) {
@@ -87,13 +95,13 @@ export function useAdminActions({ fetchData, userName, userRole, registrarLog }:
         newState === 'approved' ? "Aprobó Documento" : "Rechazó Documento", 
         `${docLabel} de ${item.nombre} (${newState.toUpperCase()})`
       );
-      fetchData();
     } else {
       toast.error("Error al guardar estado");
+      fetchData(); // Revertir si hay error
     }
   };
 
-  // 5. DECIDIR QUÉ HACER CON EL DOCUMENTO (Llama al modal de ARL si es necesario)
+  // 5. DECIDIR QUÉ HACER CON EL DOCUMENTO
   const toggleVerificacion = async (item: any, docId: string, docLabel: string, setModalARL: any) => {
     let currentVerification = item.doc_verification;
     if (typeof currentVerification === 'string') {

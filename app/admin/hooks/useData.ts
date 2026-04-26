@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 
 export function useData() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
   const [listaPerfiles, setListaPerfiles] = useState<any[]>([]);
   const [estudiantes, setEstudiantes] = useState<any[]>([]);
   const [preinscripciones, setPreinscripciones] = useState<any[]>([]);
@@ -16,6 +17,7 @@ export function useData() {
   const [agendaBD, setAgendaBD] = useState<any[]>([]);
   const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
   const [logsRecientes, setLogsRecientes] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
   const [logsPage, setLogsPage] = useState(0);
 
@@ -24,23 +26,23 @@ export function useData() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalRegistros, setTotalRegistros] = useState(0);
 
-  const fetchData = useCallback(async (esManual = false, search = "") => {
+  const fetchData = useCallback(async (esManual = false, searchOverride?: string) => {
     if (esManual) setIsRefreshing(true);
+    const searchToUse = searchOverride !== undefined ? searchOverride : busqueda;
 
     try {
       let queryEst = supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
       let queryPre = supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
 
-      // Obtener conteo total (siempre, para el indicador)
+      // Obtener conteo total
       const [countEst, countPre] = await Promise.all([
         supabase.from('estudiantes').select('*', { count: 'exact', head: true }),
         supabase.from('preinscripciones').select('*', { count: 'exact', head: true })
       ]);
       setTotalRegistros((countEst.count || 0) + (countPre.count || 0));
 
-      if (search) {
-        // Búsqueda ampliada: nombre, cédula, teléfono, curso, empresa
-        const filter = `nombre.ilike.%${search}%,cedula.ilike.%${search}%,telefono.ilike.%${search}%,curso.ilike.%${search}%,empresa.ilike.%${search}%`;
+      if (searchToUse) {
+        const filter = `nombre.ilike.%${searchToUse}%,cedula.ilike.%${searchToUse}%,telefono.ilike.%${searchToUse}%,curso.ilike.%${searchToUse}%,empresa.ilike.%${searchToUse}%`;
         queryEst = queryEst.or(filter);
         queryPre = queryPre.or(filter);
         setHasMoreEstudiantes(false);
@@ -51,7 +53,7 @@ export function useData() {
         setHasMoreEstudiantes(true);
       }
 
-      const [est, sol, age, cat, pre, logs, perf] = await Promise.allSettled([
+      const [est, sol, age, cat, pre, logs, perf, tck] = await Promise.allSettled([
         queryEst,
         supabase.from('solicitudes').select('*').order('created_at', { ascending: false }),
         supabase.from('agenda').select('*').order('fecha', { ascending: true }),
@@ -59,6 +61,7 @@ export function useData() {
         queryPre,
         supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20),
         supabase.from('profiles').select('*'),
+        supabase.from('tickets_soporte').select('*').order('created_at', { ascending: false })
       ]);
 
       if (est.status === 'fulfilled' && est.value.data) setEstudiantes(est.value.data);
@@ -66,12 +69,14 @@ export function useData() {
       if (age.status === 'fulfilled' && age.value.data) setAgendaBD(age.value.data);
       if (cat.status === 'fulfilled' && cat.value.data) setCatalogoCursos(cat.value.data);
       if (pre.status === 'fulfilled' && pre.value.data) setPreinscripciones(pre.value.data);
+      if (tck.status === 'fulfilled' && tck.value.data) setTickets(tck.value.data);
       if (logs.status === 'fulfilled' && logs.value.data) {
         setLogsRecientes(logs.value.data);
         setLogsPage(0);
         setHasMoreLogs(true);
       }
       if (perf.status === 'fulfilled' && perf.value.data) setListaPerfiles(perf.value.data);
+      if (tck.status === 'fulfilled' && tck.value.data) setTickets(tck.value.data);
 
       if (esManual) toast.success("Base de datos sincronizada");
     } catch (error) {
@@ -80,7 +85,7 @@ export function useData() {
     } finally {
       if (esManual) setIsRefreshing(false);
     }
-  }, []);
+  }, [busqueda]);
 
   const fetchMasEstudiantes = async () => {
     setIsLoadingMore(true);
@@ -98,7 +103,7 @@ export function useData() {
       const newPre = pre.data || [];
 
       if (newEst.length < 20 && newPre.length < 20) setHasMoreEstudiantes(false);
-      
+
       setEstudiantes(prev => [...prev, ...newEst]);
       setPreinscripciones(prev => [...prev, ...newPre]);
       setEstudiantesPage(nextPage);
@@ -125,15 +130,11 @@ export function useData() {
     }
   };
 
-  // ============================================================
-  // NUEVO: LÓGICA DE LA GRÁFICA (Últimos 6 meses)
-  // ============================================================
   const historialInscripciones = useMemo(() => {
     const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const hoy = new Date();
     const ultimos6Meses: any[] = [];
 
-    // 1. Armar los últimos 6 meses vacíos
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       ultimos6Meses.push({
@@ -143,9 +144,8 @@ export function useData() {
       });
     }
 
-    // 2. Llenarlos con los datos reales de preinscripciones
     preinscripciones.forEach((est: any) => {
-      const fechaString = est.fecha_registro || est.created_at; 
+      const fechaString = est.fecha_registro || est.created_at;
       if (!fechaString) return;
 
       const fecha = new Date(fechaString);
@@ -158,12 +158,16 @@ export function useData() {
       }
     });
 
-    // 3. Devolver solo lo que necesita la gráfica
     return ultimos6Meses.map(item => ({
       mes: item.mes,
       inscritos: item.inscritos
     }));
-  }, [preinscripciones]); // Se recalcula cada vez que hay una nueva preinscripción
+  }, [preinscripciones]);
+
+  const updateLocalItem = useCallback((id: string, origen: string, newData: any) => {
+    const setter = origen === 'preinscripciones' ? setPreinscripciones : setEstudiantes;
+    setter(prev => prev.map(item => item.id === id ? { ...item, ...newData } : item));
+  }, []);
 
   return {
     isRefreshing,
@@ -176,11 +180,16 @@ export function useData() {
     agendaBD,
     catalogoCursos,
     logsRecientes,
+    tickets,
+    setTickets,
     hasMoreLogs,
     fetchMasLogs,
     hasMoreEstudiantes,
     fetchMasEstudiantes,
     fetchData,
     historialInscripciones,
+    busqueda,
+    setBusqueda,
+    updateLocalItem
   };
 }

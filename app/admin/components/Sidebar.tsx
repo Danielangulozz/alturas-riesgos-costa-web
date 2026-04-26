@@ -11,15 +11,19 @@ interface SidebarProps {
   setIsSidebarOpen: (isOpen: boolean) => void;
   isCollapsed: boolean;
   setIsCollapsed: (v: boolean) => void;
-  notificacionesNuevas: number;
-  setNotificacionesNuevas: (count: number) => void;
+  notifLista: number;
+  setNotifLista: (count: number) => void;
+  notifTickets: number;
+  setNotifTickets: (count: number) => void;
   userRole: string;
 }
 
 export function Sidebar({
   activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen,
   isCollapsed, setIsCollapsed,
-  notificacionesNuevas, setNotificacionesNuevas, userRole
+  notifLista, setNotifLista,
+  notifTickets, setNotifTickets,
+  userRole
 }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', icon: <FaChartPie />, label: 'Panel Principal', roles: ['admin_general', 'developer'] },
@@ -103,7 +107,8 @@ export function Sidebar({
                 onClick={() => {
                   setActiveTab(item.id);
                   setIsSidebarOpen(false);
-                  if (item.id === 'lista') setNotificacionesNuevas(0);
+                  if (item.id === 'lista' || item.id === 'solicitudes') setNotifLista(0);
+                  if (item.id === 'tickets') setNotifTickets(0);
                 }}
                 className={`
                   w-full flex items-center transition-all duration-200 relative group
@@ -113,7 +118,7 @@ export function Sidebar({
                     : "text-slate-500 hover:text-slate-200 hover:bg-white/[0.03] rounded-xl"}
                 `}
               >
-                {/* Indicador lateral activo (Subtle slate accent) */}
+                {/* Indicador lateral activo */}
                 {activeTab === item.id && (
                   <div className={`absolute left-0 w-1 h-6 bg-slate-400 rounded-r-full shadow-[0_0_10px_rgba(148,163,184,0.5)] transition-all`} />
                 )}
@@ -128,11 +133,19 @@ export function Sidebar({
                   </span>
                 )}
 
-                {/* Badge de notificaciones (Subtle) */}
-                {item.id === 'lista' && notificacionesNuevas > 0 && (
+                {/* Badge para Base de Datos */}
+                {item.id === 'lista' && notifLista > 0 && (
                   <span className={`bg-amber-500/20 text-amber-500 text-[10px] font-black px-1.5 py-0.5 rounded-lg border border-amber-500/20 absolute 
-                    ${isCollapsed ? '-top-1 -right-1' : 'right-4'}`}>
-                    {notificacionesNuevas}
+                    ${isCollapsed ? '-top-1 -right-1' : 'right-4 animate-pulse'}`}>
+                    {notifLista}
+                  </span>
+                )}
+
+                {/* Badge para Tickets */}
+                {item.id === 'tickets' && notifTickets > 0 && (
+                  <span className={`bg-red-500/20 text-red-500 text-[10px] font-black px-1.5 py-0.5 rounded-lg border border-red-500/20 absolute 
+                    ${isCollapsed ? '-top-1 -right-1' : 'right-4 animate-pulse'}`}>
+                    {notifTickets}
                   </span>
                 )}
 
