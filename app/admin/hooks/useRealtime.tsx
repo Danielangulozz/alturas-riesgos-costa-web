@@ -187,12 +187,21 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
 
     const esReciente = (fechaISO: string) => {
       if (!fechaISO) return false;
-      return (new Date().getTime() - new Date(fechaISO).getTime()) < 15000; // 15 segundos
+      // Tolerancia de 15 minutos para evitar problemas de desfase horario (relojes desincronizados en producción)
+      return Math.abs(new Date().getTime() - new Date(fechaISO).getTime()) < 900000; 
+    };
+
+    const yaNotificado = (tipo: string, id: string) => {
+      if (!id) return true;
+      const key = `arc_notif_${tipo}`;
+      if (sessionStorage.getItem(key) === id) return true;
+      sessionStorage.setItem(key, id);
+      return false;
     };
 
     if (tickets.length > prevTicketsLength.current) {
       const nuevoTicket = tickets[0];
-      if (nuevoTicket && esReciente(nuevoTicket.created_at)) {
+      if (nuevoTicket && esReciente(nuevoTicket.created_at) && !yaNotificado('ticket', nuevoTicket.id)) {
         setNotifTicketsRef.current(prev => prev + 1);
         if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
         toast.success(`Nuevo Ticket: ${nuevoTicket?.usuario || 'Alguien'} reportó algo.`, { duration: 5000 });
@@ -207,7 +216,7 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
 
     if (preinscripciones.length > prevPreLength.current) {
       const nuevoPre = preinscripciones[0];
-      if (nuevoPre && esReciente(nuevoPre.created_at || nuevoPre.fecha_registro)) {
+      if (nuevoPre && esReciente(nuevoPre.created_at || nuevoPre.fecha_registro) && !yaNotificado('pre', nuevoPre.id)) {
         setNotifListaRef.current(prev => prev + 1);
         if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
         toast.success(`Nueva Preinscripción Web: ${nuevoPre?.nombre || 'Alguien'}`, { duration: 5000 });
@@ -222,7 +231,7 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
 
     if (estudiantes.length > prevEstLength.current) {
       const nuevoEst = estudiantes[0];
-      if (nuevoEst && esReciente(nuevoEst.created_at)) {
+      if (nuevoEst && esReciente(nuevoEst.created_at) && !yaNotificado('est', nuevoEst.id)) {
         setNotifListaRef.current(prev => prev + 1);
         if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
         toast.success(`Nuevo Estudiante Matriculado: ${nuevoEst?.nombre || 'Alguien'}`, { duration: 5000 });
@@ -237,7 +246,7 @@ export function useRealtime({ fetchData, setActiveTab, setNotifLista, setNotifTi
 
     if (solicitudes.length > prevSolLength.current) {
       const nuevaSol = solicitudes[0];
-      if (nuevaSol && esReciente(nuevaSol.created_at)) {
+      if (nuevaSol && esReciente(nuevaSol.created_at) && !yaNotificado('sol', nuevaSol.id)) {
         setNotifSolicitudesRef.current(prev => prev + 1);
         if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(()=>{}); }
         toast.success(`Nueva Solicitud: ${nuevaSol?.nombre || 'Alguien'}`, { 
