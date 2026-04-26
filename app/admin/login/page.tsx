@@ -105,7 +105,7 @@ export default function AdminLogin() {
 
         {/* Logo & Header */}
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/logosolo.png" alt="ARC Logo" className="w-16 h-16 drop-shadow-2xl" />
+          <img src="/LOGOSOLO.png" alt="ARC Logo" className="w-16 h-16 drop-shadow-2xl" />
           <div>
             <h2 className="text-white font-black text-2xl tracking-widest uppercase leading-none">
               <span className="text-slate-400">ARC</span> SYSTEM
@@ -141,7 +141,7 @@ export default function AdminLogin() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center mb-8">
             <div className="bg-[#0F172A] p-4 rounded-3xl shadow-xl mb-4">
-              <img src="/logosolo.png" alt="ARC Logo" className="w-14 h-14" />
+              <img src="/LOGOSOLO.png" alt="ARC Logo" className="w-14 h-14" />
             </div>
             <h2 className="text-slate-800 font-black text-2xl tracking-widest uppercase text-center">
               <span className="text-slate-400">ARC</span> SYSTEM

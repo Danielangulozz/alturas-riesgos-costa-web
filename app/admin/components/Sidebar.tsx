@@ -68,7 +68,7 @@ export function Sidebar({
             <div className="relative group shrink-0">
               <div className="absolute inset-0 bg-slate-400 rounded-xl blur opacity-0 group-hover:opacity-20 transition-opacity" />
               <img
-                src="/logosolo.png"
+                src="/LOGOSOLO.png"
                 alt="ARC"
                 className={`transition-all duration-300 object-contain drop-shadow-xl ${isCollapsed ? 'w-10 h-10 mx-auto' : 'w-12 h-12'}`}
               />
