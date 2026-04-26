@@ -8,10 +8,12 @@ import { formatFechaElegante } from "../utils/formatters";
 import { DocButton } from "./DocButton";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
+import { generarPDFCertificado } from "@/lib/certificadoLogic";
 import * as XLSX from 'xlsx';
 import { FaFileExcel, FaFileArchive, FaCity, FaFileAlt, FaCertificate } from 'react-icons/fa'; // Asegúrate de importar el ícono
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
 
 interface TabListaProps {
   busqueda: string;
@@ -47,6 +49,8 @@ export function TabLista({
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [filtroPago, setFiltroPago] = React.useState<string>('');
   const [filtroAptitud, setFiltroAptitud] = React.useState<string>('');
+  const [cursoSeleccionadoPorCedula, setCursoSeleccionadoPorCedula] = React.useState<Record<string, string>>({});
+  const [modalEstudiante, setModalEstudiante] = React.useState<{ isOpen: boolean, grupo: any[] }>({ isOpen: false, grupo: [] });
 
   // Aplicar filtros locales sobre la lista unificada
   const listaFiltrada = listaUnificada.filter(item => {
@@ -59,6 +63,18 @@ export function TabLista({
   const allSameCourse = selectedItems.length > 0 && selectedItems.every(i => i.curso === selectedItems[0].curso);
   const courseForAgenda = allSameCourse ? selectedItems[0].curso : null;
   const hasPendingPayment = selectedItems.some(i => i.estado_pago !== 'Pagado' && i.estadoPago !== 'Pagado');
+
+  // Agrupar por cédula para mostrar un solo estudiante con múltiples cursos
+  const groupedEstudiantes = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    listaFiltrada.forEach(item => {
+      if (!map.has(item.cedula)) map.set(item.cedula, []);
+      map.get(item.cedula)!.push(item);
+    });
+    return Array.from(map.values()).map(group => {
+      return group.sort((a, b) => new Date(b.created_at || b.fecha_registro).getTime() - new Date(a.created_at || a.fecha_registro).getTime());
+    });
+  }, [listaFiltrada]);
 
   const toggleSeleccion = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -262,6 +278,7 @@ export function TabLista({
             <option value="APTO">APTO</option>
             <option value="NO APTO">NO APTO</option>
             <option value="CERTIFICADO">CERTIFICADO</option>
+            <option value="RETIRADO">RETIRADO</option>
           </select>
 
           {(filtroPago || filtroAptitud) && (
@@ -315,7 +332,11 @@ export function TabLista({
               <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No se encontraron registros</p>
               <p className="text-xs text-slate-400 mt-2">Intenta con otra búsqueda o limpia los filtros</p>
             </div>
-          ) : listaFiltrada.map((item: any) => {
+          ) : groupedEstudiantes.map((group: any[]) => {
+            const cedula = group[0].cedula;
+            const activeId = cursoSeleccionadoPorCedula[cedula] || group[0].id;
+            const item = group.find(i => i.id === activeId) || group[0];
+
             const reqs = obtenerRequeridos(item.curso);
             let verificacion = item.doc_verification;
             if (typeof verificacion === 'string') {
@@ -345,8 +366,27 @@ export function TabLista({
                             <FaBuilding size={8} /> EMPRESA
                           </span>
                         )}
+                        {item.certificado_generado && (
+                          <span 
+                            onClick={() => {
+                              const bloque = agendaBD.find(a => a.id === item.agenda_id);
+                              if (bloque) generarPDFCertificado(item, bloque);
+                              else toast.error("No hay agenda asignada para este certificado");
+                            }}
+                            className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-pointer shadow-sm border border-emerald-600 flex items-center gap-1 hover:bg-emerald-600 transition-colors"
+                            title={`Código: ${item.certificado_codigo} | Emitido: ${item.certificado_fecha_emision} | Vence: ${item.certificado_fecha_vencimiento}`}
+                          >
+                            <FaCertificate size={8} /> CERTIFICADO (Clic para bajar)
+                          </span>
+                        )}
                       </div>
-                      <h4 className="font-black text-slate-800 text-base leading-tight mt-1 uppercase">{item.nombre}</h4>
+                      <h4 
+                        onClick={() => setModalEstudiante({ isOpen: true, grupo: group })}
+                        className="font-black text-slate-800 text-base leading-tight mt-1 uppercase cursor-pointer hover:text-blue-600 transition-colors inline-block"
+                        title="Ver detalles del estudiante"
+                      >
+                        {item.nombre}
+                      </h4>
                     </div>
                   </div>
                   <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{item.cedula}</div>
@@ -355,8 +395,22 @@ export function TabLista({
                 {/* Info & Badges */}
                 <div className="space-y-3 mb-4">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Programa</p>
-                    <p className="text-[11px] font-bold text-slate-700">{item.curso}</p>
+                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Programa / Curso</p>
+                    {group.length > 1 ? (
+                      <select 
+                        value={item.id}
+                        onChange={(e) => setCursoSeleccionadoPorCedula(prev => ({ ...prev, [cedula]: e.target.value }))}
+                        className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-lg p-1.5 outline-none w-full cursor-pointer hover:border-blue-300 transition-all shadow-sm appearance-none"
+                      >
+                        {group.map(g => (
+                          <option key={g.id} value={g.id}>
+                            {g.curso} - {g.origen === 'estudiantes' ? 'Activo' : 'Pendiente'}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-[11px] font-bold text-slate-700">{item.curso}</p>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -382,6 +436,7 @@ export function TabLista({
                         <option>APTO</option>
                         <option>NO APTO</option>
                         <option>CERTIFICADO</option>
+                        <option>RETIRADO</option>
                       </select>
                     </div>
                   </div>
@@ -469,7 +524,11 @@ export function TabLista({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {listaFiltrada.map((item: any) => {
+              {groupedEstudiantes.map((group: any[]) => {
+                const cedula = group[0].cedula;
+                const activeId = cursoSeleccionadoPorCedula[cedula] || group[0].id;
+                const item = group.find(i => i.id === activeId) || group[0];
+
                 const reqs = obtenerRequeridos(item.curso);
                 let verificacion = item.doc_verification;
                 if (typeof verificacion === 'string') {
@@ -507,31 +566,42 @@ export function TabLista({
                           </span>
                         )}
 
-                        {item.resultado_final === "CERTIFICADO" && (
+                        {item.certificado_generado && (
                           <div className="relative group/badge">
-                            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-help shadow-sm border border-emerald-600 flex items-center gap-1">
+                            <span 
+                              onClick={() => {
+                                const bloque = agendaBD.find(a => a.id === item.agenda_id);
+                                if (bloque) generarPDFCertificado(item, bloque);
+                                else toast.error("No hay agenda asignada para este certificado");
+                              }}
+                              className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-pointer shadow-sm border border-emerald-600 flex items-center gap-1 hover:bg-emerald-600 transition-colors"
+                            >
                               <FaCertificate size={8} /> CERTIFICADO
                             </span>
                             <div className="absolute left-0 bottom-full mb-2 hidden group-hover/badge:flex flex-col bg-slate-900 text-white text-[10px] p-3 rounded-lg shadow-xl border border-slate-700 z-50 min-w-[200px]">
                               <p className="font-bold text-emerald-400 mb-1 border-b border-slate-700 pb-1">{item.curso}</p>
+                              <p className="flex justify-between"><span>Código:</span> <span className="font-mono text-slate-300">
+                                {item.certificado_codigo || "N/A"}
+                              </span></p>
                               <p className="flex justify-between"><span>Emisión:</span> <span className="font-mono text-slate-300">
-                                {agendaBD.find((a: any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0, 10) || "N/A"}
+                                {item.certificado_fecha_emision || "N/A"}
                               </span></p>
                               <p className="flex justify-between"><span>Vencimiento:</span> <span className="font-mono text-amber-400">
-                                {(() => {
-                                  const fStr = agendaBD.find((a: any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0, 10);
-                                  if (!fStr) return "N/A";
-                                  const d = new Date(fStr);
-                                  d.setFullYear(d.getFullYear() + 1);
-                                  return d.toISOString().substring(0, 10);
-                                })()}
+                                {item.certificado_fecha_vencimiento || "N/A"}
                               </span></p>
+                              <p className="mt-2 text-center text-[8px] text-slate-400 border-t border-slate-700 pt-1">Clic en el badge para descargar PDF</p>
                             </div>
                           </div>
                         )}
 
                       </div>
-                      <div className="font-black text-slate-700 text-base uppercase tracking-tight leading-tight">{item.nombre}</div>
+                      <div 
+                        onClick={() => setModalEstudiante({ isOpen: true, grupo: group })}
+                        className="font-black text-slate-700 text-base uppercase tracking-tight leading-tight cursor-pointer hover:text-blue-600 transition-colors inline-block"
+                        title="Ver detalles e historial"
+                      >
+                        {item.nombre}
+                      </div>
                       <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1 mt-0.5"><FaIdCard size={10} /> {item.cedula}</div>
                       <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                         <FaMapMarkerAlt className="text-red-400" size={10} />
@@ -539,7 +609,24 @@ export function TabLista({
                         <span className="text-slate-300">|</span>
                         <span className="font-bold text-slate-600">Barrio: {item.barrio || 'N/A'}</span>
                       </div>
-                      <div className="text-[10px] text-blue-600 font-black uppercase mt-1 tracking-tight">{item.curso}</div>
+                      <div className="mt-2">
+                        {group.length > 1 ? (
+                          <select 
+                            value={item.id}
+                            onChange={(e) => setCursoSeleccionadoPorCedula(prev => ({ ...prev, [cedula]: e.target.value }))}
+                            className="bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-lg p-1.5 outline-none w-full max-w-[280px] cursor-pointer hover:border-blue-300 hover:text-blue-700 transition-all shadow-sm appearance-none"
+                          >
+                            {group.map(g => (
+                              <option key={g.id} value={g.id}>
+                                {g.curso} ({g.origen === 'estudiantes' ? 'Activo' : 'Pendiente'})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[10px] text-blue-600 font-black uppercase tracking-tight">{item.curso}</div>
+                        )}
+                        <div className="text-[8px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Registrado: {item.created_at ? new Date(item.created_at).toLocaleDateString('es-CO') : 'N/A'}</div>
+                      </div>
                     </td>
 
                     {/* COLUMNA 2: DOCUMENTOS */}
@@ -588,6 +675,7 @@ export function TabLista({
                         <option>APTO</option>
                         <option>NO APTO</option>
                         <option>CERTIFICADO</option>
+                        <option>RETIRADO</option>
                       </select>
                     </td>
 
@@ -691,6 +779,12 @@ export function TabLista({
           )}
         </div>
       </div>
+
+      <ModalDetalleEstudiante 
+        isOpen={modalEstudiante.isOpen} 
+        onClose={() => setModalEstudiante({ isOpen: false, grupo: [] })} 
+        grupoEstudiante={modalEstudiante.grupo} 
+      />
 
       {/* MODAL PARA CAPTURAR DATOS DE ARL */}
         {modalARL.isOpen && (

@@ -86,11 +86,12 @@ function ProgressBar({ total, listos }: { total: number; listos: number }) {
 
 // ─── Tarjeta de documento ───
 function DocCard({
-  codigoDoc, infoDoc, urlArchivo, uploading, onSubida, verificacion
+  codigoDoc, infoDoc, urlArchivo, uploading, onSubida, verificacion, oldUrl, onReutilizar
 }: {
   codigoDoc: string; infoDoc: DocumentoInfo; urlArchivo?: string;
   uploading: string | null; onSubida: (e: React.ChangeEvent<HTMLInputElement>, cod: string) => void;
   verificacion?: { status: string; by?: string; at?: string };
+  oldUrl?: string; onReutilizar?: (cod: string, url: string) => void;
 }) {
   const estaListo  = !!urlArchivo;
   const subiendo   = uploading === codigoDoc;
@@ -171,6 +172,17 @@ function DocCard({
             <FaExternalLinkAlt size={9}/> Ver documento actual
           </a>
         )}
+
+        {oldUrl && !estaListo && onReutilizar && (
+          <button
+            onClick={() => onReutilizar(codigoDoc, oldUrl)}
+            className="w-full mt-2 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 border border-blue-100"
+            disabled={!!uploading}
+          >
+            <FaSync size={10} className={uploading === codigoDoc ? "animate-spin" : ""} /> 
+            Reutilizar de curso previo
+          </button>
+        )}
       </div>
     </div>
   );
@@ -181,7 +193,9 @@ function ContenidoSubida() {
   const searchParams = useSearchParams();
 
   const [cedulaBusqueda, setCedulaBusqueda] = useState("");
+  const [fechaNacimientoBusqueda, setFechaNacimientoBusqueda] = useState("");
   const [datosUsuario,   setDatosUsuario]   = useState<UsuarioData | null>(null);
+  const [listaCursos,    setListaCursos]    = useState<UsuarioData[]>([]);
   const [loading,        setLoading]        = useState(false);
   const [uploading,      setUploading]      = useState<string | null>(null);
   const [headerVisible,  setHeaderVisible]  = useState(false);
@@ -226,31 +240,39 @@ function ContenidoSubida() {
     if (e) e.preventDefault();
     const cedula = cedulaBusqueda.trim();
     if (!cedula) return toast.error("Escribe tu cédula");
+    if (!fechaNacimientoBusqueda) return toast.error("Ingresa tu fecha de nacimiento");
+    
     setLoading(true);
     try {
       console.log("Buscando cédula:", cedula);
       // 1. Buscar en preinscripciones
       const { data: pre, error: preError } = await supabase.from("preinscripciones")
-        .select("*").eq("cedula", cedula).maybeSingle();
+        .select("*").eq("cedula", cedula).order("created_at", { ascending: false });
       
-      if (pre) {
-        console.log("Encontrado en preinscripciones");
-        setDatosUsuario({ ...pre, tabla_origen: 'preinscripciones' });
-        toast.success(`Hola, ${pre.nombre.split(" ")[0]} 👋`);
+      // 2. Buscar en estudiantes
+      const { data: est, error: estError } = await supabase.from("estudiantes")
+        .select("*").eq("cedula", cedula).order("created_at", { ascending: false });
+
+      const todos = [
+        ...(pre || []).map(p => ({ ...p, tabla_origen: 'preinscripciones' })),
+        ...(est || []).map(e => ({ ...e, tabla_origen: 'estudiantes' }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      if (todos.length === 0) {
+        toast.error("No encontramos tu registro. Verifica el número.");
         return;
       }
 
-      // 2. Buscar en estudiantes
-      const { data: est, error: estError } = await supabase.from("estudiantes")
-        .select("*").eq("cedula", cedula).maybeSingle();
-
-      if (est) {
-        console.log("Encontrado en estudiantes");
-        setDatosUsuario({ ...est, tabla_origen: 'estudiantes' });
-        toast.success(`Hola, ${est.nombre.split(" ")[0]} 👋`);
-      } else {
-        toast.error("No encontramos tu registro. Verifica el número.");
+      // Validación de seguridad por Fecha de Nacimiento
+      const coincideFecha = todos.some(t => t.fecha_nacimiento === fechaNacimientoBusqueda);
+      if (!coincideFecha) {
+        toast.error("Credenciales incorrectas. Verifica tu cédula y fecha de nacimiento.");
+        return;
       }
+
+      setListaCursos(todos);
+      setDatosUsuario(todos[0]);
+      toast.success(`Hola, ${todos[0].nombre.split(" ")[0]} 👋`);
     } catch (err) { 
       console.error("Error búsqueda:", err);
       toast.error("Error de conexión"); 
@@ -343,6 +365,37 @@ function ContenidoSubida() {
     }
   };
 
+  const manejarReutilizacion = async (codigoDoc: string, url: string) => {
+    if (!datosUsuario) return;
+    const colBD = MAPA_DOCUMENTOS[codigoDoc].col;
+    const tabla = (datosUsuario as any).tabla_origen || 'preinscripciones';
+
+    setUploading(codigoDoc);
+    const tId = toast.loading("Asociando documento...");
+
+    try {
+      const { error: dbError } = await supabase
+        .from(tabla)
+        .update({ [colBD]: url })
+        .eq("id", datosUsuario.id);
+
+      if (dbError) throw dbError;
+
+      setDatosUsuario(prev => {
+        if (!prev) return null;
+        return { ...prev, [colBD]: url };
+      });
+      
+      setListaCursos(prev => prev.map(c => c.id === datosUsuario.id ? { ...c, [colBD]: url } : c));
+      toast.success("Documento reutilizado correctamente", { id: tId });
+      
+    } catch (err: any) {
+      toast.error(err.message || "Error al asociar", { id: tId });
+    } finally {
+      setUploading(null);
+    }
+  };
+
   // Calcular progreso
   const requeridos = datosUsuario ? obtenerRequeridos(datosUsuario.curso) : [];
   const listos     = requeridos.filter(cod => !!datosUsuario?.[MAPA_DOCUMENTOS[cod].col]).length;
@@ -399,17 +452,31 @@ function ContenidoSubida() {
             </div>
 
             <form onSubmit={buscarPorCedula} className="space-y-4">
-              <div className="relative group">
-                <FaIdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={14}/>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="Ej: 1102839100"
-                  value={cedulaBusqueda}
-                  onChange={(e) => setCedulaBusqueda(e.target.value.replace(/\D/g, ""))}
-                  className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-800 text-base font-bold text-center placeholder:font-normal placeholder:text-slate-400"
-                />
+              <div className="space-y-3">
+                <div className="relative group">
+                  <FaIdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={14}/>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Ej: 1102839100"
+                    value={cedulaBusqueda}
+                    onChange={(e) => setCedulaBusqueda(e.target.value.replace(/\D/g, ""))}
+                    className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-800 text-base font-bold placeholder:font-normal placeholder:text-slate-400"
+                  />
+                </div>
+                
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">PIN</div>
+                  <input
+                    type="date"
+                    required
+                    value={fechaNacimientoBusqueda}
+                    onChange={(e) => setFechaNacimientoBusqueda(e.target.value)}
+                    title="Fecha de Nacimiento"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-800 text-base font-bold placeholder:font-normal placeholder:text-slate-400 cursor-text"
+                  />
+                </div>
               </div>
 
               <button
@@ -444,7 +511,7 @@ function ContenidoSubida() {
                   <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0">
                     {datosUsuario.nombre.charAt(0)}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">
                       {datosUsuario.tabla_origen === 'estudiantes' ? 'Estudiante Activo' : 'Pre-inscrito'} 
                       <span className="ml-2 text-slate-500 font-mono text-[8px]">ID: {datosUsuario.id.substring(0,8)}</span>
@@ -452,11 +519,27 @@ function ContenidoSubida() {
                     <h2 className="text-base font-black text-white leading-none uppercase" style={{ letterSpacing: "-0.01em" }}>
                       {datosUsuario.nombre}
                     </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">{datosUsuario.curso}</p>
+                    
+                    {listaCursos.length > 1 ? (
+                      <select 
+                        value={datosUsuario.id}
+                        onChange={(e) => {
+                          const seleccionado = listaCursos.find(c => c.id === e.target.value);
+                          if(seleccionado) setDatosUsuario(seleccionado);
+                        }}
+                        className="mt-1.5 w-full bg-slate-800 text-blue-200 text-xs p-1.5 font-bold rounded-lg border border-slate-700 outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                      >
+                        {listaCursos.map(c => (
+                          <option key={c.id} value={c.id}>{c.curso} ({c.tabla_origen === 'estudiantes' ? 'Activo' : 'Pendiente'})</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-slate-400 mt-0.5">{datosUsuario.curso}</p>
+                    )}
                   </div>
                 </div>
                 <button
-                  onClick={() => setDatosUsuario(null)}
+                  onClick={() => { setDatosUsuario(null); setListaCursos([]); }}
                   className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 hover:text-red-400 uppercase tracking-widest transition-colors"
                 >
                   <FaSync size={9}/> Cambiar
@@ -491,6 +574,8 @@ function ContenidoSubida() {
                     uploading={uploading}
                     onSubida={manejarSubida}
                     verificacion={verificacion as any}
+                    oldUrl={listaCursos.find(c => c.id !== datosUsuario.id && !!c[MAPA_DOCUMENTOS[cod].col])?.[MAPA_DOCUMENTOS[cod].col]}
+                    onReutilizar={manejarReutilizacion}
                   />
                 </AnimateIn>
               );

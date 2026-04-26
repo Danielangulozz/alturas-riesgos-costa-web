@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FaUserPlus, FaCheckCircle, FaInfoCircle, FaBriefcase, FaMapMarkerAlt } from "react-icons/fa";
 
 interface TabEstudiantesProps {
@@ -14,6 +14,23 @@ export function TabEstudiantes({
   formData, setFormData, registrarEstudiante,
   cursoSeleccionadoParaEditar, setCursoSeleccionadoParaEditar, catalogoCursos
 }: TabEstudiantesProps) {
+  const MUNICIPIOS_SUCRE = [
+    "Sincelejo", "Buenavista", "Caimito", "Chalán", "Colosó", "Corozal", "Coveñas", "El Roble",
+    "Galeras", "Guaranda", "La Unión", "Los Palmitos", "Majagual", "Morroa", "Ovejas", "Palmito",
+    "Sampués", "San Benito Abad", "San Juan de Betulia", "San Marcos", "San Onofre", "San Pedro",
+    "Sincé", "Sucre", "Tolú", "Toluviejo"
+  ].sort();
+
+  const BARRIOS_SINCELEJO = [
+    "La Sabana", "Centro", "Chochó", "Majagual", "Florencia", "La Palma", "Las Peñitas", "El Cortijo", "El Bosque",
+    "Pioneros", "Los Alpes", "Las Margaritas", "Boston", "San Vicente", "Camilo Torres", "El Cauca", "La María",
+    "El Edén", "San Luis", "Bitar", "La Bucaramanga", "San Antonio", "Cielo Azul", "El Progreso", "La Fe",
+    "La Pollita", "Mochila", "Los Libertadores", "Las Colinas", "Uribe Uribe"
+  ].sort();
+
+  useEffect(() => {
+    // Component mounted
+  }, []);
 
   const inputCls = "w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-600 focus:bg-white transition-all text-[13px] font-medium placeholder:text-slate-400";
   const labelCls = "text-[10px] font-black text-slate-500 ml-1 uppercase tracking-wider mb-1.5 block";
@@ -122,13 +139,19 @@ export function TabEstudiantes({
                 <label htmlFor="ciudad_residencia" className={labelCls}>Ciudad / Dirección de Residencia *</label>
                 <div className="relative">
                   <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-                  <input id="ciudad_residencia" name="ciudad_residencia" required placeholder="Ciudad o dirección" className={`${inputCls} pl-8`} value={formData.ciudad_residencia} onChange={(e) => setFormData({ ...formData, ciudad_residencia: e.target.value })} />
+                  <input list="municipios-sucre-admin" id="ciudad_residencia" name="ciudad_residencia" required placeholder="Ej: Sincelejo" className={`${inputCls} pl-8`} value={formData.ciudad_residencia} onChange={(e) => setFormData({ ...formData, ciudad_residencia: e.target.value })} />
+                  <datalist id="municipios-sucre-admin">
+                    {MUNICIPIOS_SUCRE.map(m => <option key={m} value={m} />)}
+                  </datalist>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label htmlFor="barrio" className={labelCls}>Barrio / Localidad</label>
-                <input id="barrio" name="barrio" placeholder="Nombre del barrio" className={inputCls} value={formData.barrio} onChange={(e) => setFormData({ ...formData, barrio: e.target.value })} />
+                <input list="barrios-sincelejo-admin" id="barrio" name="barrio" placeholder="Ej: La Sabana" className={inputCls} value={formData.barrio} onChange={(e) => setFormData({ ...formData, barrio: e.target.value })} />
+                <datalist id="barrios-sincelejo-admin">
+                  {BARRIOS_SINCELEJO.map(b => <option key={b} value={b} />)}
+                </datalist>
               </div>
             </div>
           </div>

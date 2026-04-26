@@ -75,11 +75,26 @@ export default function FormPreInscripcion() {
   const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
   const [headerVisible, setHeaderVisible] = useState(false);
 
+  const MUNICIPIOS_SUCRE = [
+    "Sincelejo", "Buenavista", "Caimito", "Chalán", "Colosó", "Corozal", "Coveñas", "El Roble",
+    "Galeras", "Guaranda", "La Unión", "Los Palmitos", "Majagual", "Morroa", "Ovejas", "Palmito",
+    "Sampués", "San Benito Abad", "San Juan de Betulia", "San Marcos", "San Onofre", "San Pedro",
+    "Sincé", "Sucre", "Tolú", "Toluviejo"
+  ].sort();
+
+  const BARRIOS_SINCELEJO = [
+    "La Sabana", "Centro", "Majagual", "Florencia", "La Palma", "Las Peñitas", "El Cortijo", "El Bosque",
+    "Pioneros", "Los Alpes", "Las Margaritas", "Boston", "San Vicente", "Camilo Torres", "El Cauca", "La María",
+    "El Edén", "San Luis", "Bitar", "La Bucaramanga", "San Antonio", "Cielo Azul", "El Progreso", "La Fe",
+    "La Pollita", "Mochila", "Los Libertadores", "Las Colinas", "Uribe Uribe"
+  ].sort();
+
   const [formData, setFormData] = useState({
     nombre: "", cedula: "", fecha_nacimiento: "", sexo: "",
     telefono: "", email: "", direccion: "", barrio: "",
     curso: "", empresa: "", nit: "", horario_preferencia: "",
     acepta_datos: false,
+    url_cc: "", url_arl: "", url_emo: "", url_eps: "", url_cert_altura: "", url_cert_sst: ""
   });
 
   useEffect(() => {
@@ -100,6 +115,46 @@ export default function FormPreInscripcion() {
     const m = hoy.getMonth() - cumple.getMonth();
     if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
     return edad.toString();
+  };
+
+  const buscarDatosPrevios = async (cedula: string) => {
+    if (!cedula || cedula.length < 5) return;
+    try {
+      let { data } = await supabase.from("estudiantes")
+        .select("*").eq("cedula", cedula).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      
+      if (!data) {
+        const { data: pre } = await supabase.from("preinscripciones")
+          .select("*").eq("cedula", cedula).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        data = pre;
+      }
+
+      if (data) {
+        toast.success(`¡Hola de nuevo ${data.nombre.split(" ")[0]}! Hemos cargado tus datos previos para facilitar el registro.`);
+        setFormData(prev => ({
+          ...prev,
+          nombre: data.nombre || prev.nombre,
+          fecha_nacimiento: data.fecha_nacimiento || prev.fecha_nacimiento,
+          sexo: data.sexo || prev.sexo,
+          telefono: data.telefono || prev.telefono,
+          email: data.email || prev.email,
+          direccion: data.ciudad_residencia || data.direccion || prev.direccion,
+          barrio: data.barrio || prev.barrio,
+          url_cc: data.url_cc || "",
+          url_arl: "",
+          url_emo: "",
+          url_eps: "",
+          url_cert_altura: "",
+          url_cert_sst: "",
+        }));
+        if (data.tipo_cliente) setTipoCliente(data.tipo_cliente);
+        if (data.empresa && data.tipo_cliente === "Empresa") {
+           setFormData(prev => ({ ...prev, empresa: data.empresa, nit: data.nit || "" }));
+        }
+      }
+    } catch (err) {
+      console.error("Error buscando datos previos:", err);
+    }
   };
 
   const guardarEnBaseDeDatos = async () => {
@@ -126,6 +181,12 @@ export default function FormPreInscripcion() {
         estado_proceso: "Pre-inscrito",
         resultado_final: "Pendiente",
         precio_pactado: cursoData ? cursoData.precio_base.toString() : "0",
+        url_cc: formData.url_cc || null,
+        url_arl: formData.url_arl || null,
+        url_emo: formData.url_emo || null,
+        url_eps: formData.url_eps || null,
+        url_cert_altura: formData.url_cert_altura || null,
+        url_cert_sst: formData.url_cert_sst || null,
       };
       const { data, error } = await supabase.from("preinscripciones").insert([payload]).select();
       if (error) throw error;
@@ -191,7 +252,10 @@ export default function FormPreInscripcion() {
             <button
               onClick={() => {
                 setEnviado(false); setConfirmar(false);
-                setFormData({ nombre: "", cedula: "", fecha_nacimiento: "", sexo: "", telefono: "", email: "", direccion: "", barrio: "", curso: "", empresa: "", nit: "", horario_preferencia: "", acepta_datos: false });
+                setFormData({ 
+                  nombre: "", cedula: "", fecha_nacimiento: "", sexo: "", telefono: "", email: "", direccion: "", barrio: "", curso: "", empresa: "", nit: "", horario_preferencia: "", acepta_datos: false,
+                  url_cc: "", url_arl: "", url_emo: "", url_eps: "", url_cert_altura: "", url_cert_sst: ""
+                });
               }}
               className="w-full py-3 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"
             >
@@ -404,18 +468,24 @@ export default function FormPreInscripcion() {
                 <div className="grid md:grid-cols-2 gap-5">
                   <Field label="Nombre Completo" icon={<FaUser size={10}/>} required>
                     <input required placeholder="Ej: Juan Carlos Pérez" className={inputCls}
+                      value={formData.nombre}
                       onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}/>
                   </Field>
                   <Field label="Cédula" icon={<FaIdCard size={10}/>} required>
                     <input required type="number" placeholder="Ej: 1102839100" className={inputCls}
-                      onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}/>
+                      value={formData.cedula}
+                      onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                      onBlur={(e) => buscarDatosPrevios(e.target.value)}
+                    />
                   </Field>
                   <Field label="Fecha de Nacimiento" icon={<FaCalendarAlt size={10}/>} required>
                     <input required type="date" className={inputCls}
+                      value={formData.fecha_nacimiento}
                       onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}/>
                   </Field>
                   <Field label="Género" icon={<FaUser size={10}/>} required>
                     <select required className={inputCls}
+                      value={formData.sexo}
                       onChange={(e) => setFormData({ ...formData, sexo: e.target.value })}>
                       <option value="">Seleccionar...</option>
                       <option value="M">Masculino</option>
@@ -429,12 +499,20 @@ export default function FormPreInscripcion() {
                 {/* Ubicación */}
                 <div className="grid md:grid-cols-2 gap-5">
                   <Field label="Ciudad" icon={<FaMapMarkerAlt size={10}/>} required>
-                    <input required placeholder="Ej: Sincelejo" className={inputCls}
+                    <input required list="municipios-sucre" placeholder="Ej: Sincelejo" className={inputCls}
+                      value={formData.direccion}
                       onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}/>
+                    <datalist id="municipios-sucre">
+                      {MUNICIPIOS_SUCRE.map(m => <option key={m} value={m} />)}
+                    </datalist>
                   </Field>
                   <Field label="Barrio" icon={<FaMapMarkerAlt size={10}/>} required>
-                    <input required placeholder="Ej: La Sabana" className={inputCls}
+                    <input required list="barrios-sincelejo" placeholder="Ej: La Sabana" className={inputCls}
+                      value={formData.barrio}
                       onChange={(e) => setFormData({ ...formData, barrio: e.target.value })}/>
+                    <datalist id="barrios-sincelejo">
+                      {BARRIOS_SINCELEJO.map(b => <option key={b} value={b} />)}
+                    </datalist>
                   </Field>
                 </div>
 
@@ -444,10 +522,12 @@ export default function FormPreInscripcion() {
                 <div className="grid md:grid-cols-2 gap-5">
                   <Field label="WhatsApp" icon={<FaPhoneAlt size={10}/>} required>
                     <input required type="tel" placeholder="3XX XXX XXXX" className={inputCls}
+                      value={formData.telefono}
                       onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}/>
                   </Field>
                   <Field label="Correo Electrónico" icon={<FaEnvelope size={10}/>} required>
                     <input required type="email" placeholder="correo@ejemplo.com" className={inputCls}
+                      value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}/>
                   </Field>
                 </div>
@@ -457,10 +537,12 @@ export default function FormPreInscripcion() {
                   <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-5 grid md:grid-cols-2 gap-4">
                     <Field label="Nombre Empresa" icon={<FaBuilding size={10}/>} required>
                       <input required placeholder="Razón social" className={inputCls}
+                        value={formData.empresa}
                         onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}/>
                     </Field>
                     <Field label="NIT" icon={<FaIdCard size={10}/>} required>
                       <input required placeholder="900.XXX.XXX-X" className={inputCls}
+                        value={formData.nit}
                         onChange={(e) => setFormData({ ...formData, nit: e.target.value })}/>
                     </Field>
                   </div>

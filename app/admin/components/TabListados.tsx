@@ -25,6 +25,37 @@ export function TabListados({
   agendaBD, estudiantes, preinscripciones, descargarPDFAsistencia, fetchData, registrarLog, triggerConfirm
 }: TabListadosProps) {
   
+  const [historialCursos, setHistorialCursos] = React.useState<any[]>([]);
+  const [loadingHistorial, setLoadingHistorial] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchHistorial = async () => {
+      if (!estudianteSeleccionado?.cedula) {
+        setHistorialCursos([]);
+        return;
+      }
+      setLoadingHistorial(true);
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data } = await supabase
+          .from('estudiantes')
+          .select('id, curso, certificado_generado, certificado_fecha_emision, certificado_codigo')
+          .eq('cedula', estudianteSeleccionado.cedula)
+          .order('created_at', { ascending: false });
+        
+        if (data) {
+          // Filtramos para no mostrar el actual si queremos, o lo mostramos todo
+          setHistorialCursos(data);
+        }
+      } catch (err) {
+        console.error("Error fetching historial", err);
+      } finally {
+        setLoadingHistorial(false);
+      }
+    };
+    fetchHistorial();
+  }, [estudianteSeleccionado]);
+
   return (
     <div className="space-y-6 animate-in fade-in">
       
@@ -64,6 +95,55 @@ export function TabListados({
                   {estudianteSeleccionado.resultado_final || 'Pendiente'}
                 </span>
               </div>
+            </div>
+
+            {/* Datos del Certificado (Requerimiento 1) */}
+            {estudianteSeleccionado.certificado_generado && (
+              <div className="space-y-2 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mb-4 animate-in fade-in zoom-in">
+                <h5 className="text-emerald-700 font-bold text-[11px] uppercase mb-2 flex items-center gap-2">
+                  <FaCheckCircle /> Información de Certificación
+                </h5>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-emerald-600 font-bold uppercase">Código:</span>
+                  <span className="text-emerald-800 font-mono font-black">{estudianteSeleccionado.certificado_codigo}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-emerald-600 font-bold uppercase">Emisión:</span>
+                  <span className="text-emerald-800 font-bold">{estudianteSeleccionado.certificado_fecha_emision}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-emerald-600 font-bold uppercase">Vencimiento:</span>
+                  <span className="text-emerald-800 font-bold">{estudianteSeleccionado.certificado_fecha_vencimiento}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Historial de Cursos (Requerimiento 2) */}
+            <div className="mb-4">
+              <h5 className="text-slate-500 font-bold text-[10px] uppercase mb-2">Historial de Cursos ({historialCursos.length})</h5>
+              {loadingHistorial ? (
+                <p className="text-[10px] text-slate-400">Cargando historial...</p>
+              ) : historialCursos.length > 0 ? (
+                <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                  {historialCursos.map(h => (
+                    <div key={h.id} className="bg-slate-50 border border-slate-100 rounded-lg p-2 flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-700 leading-tight">{h.curso}</p>
+                        {h.certificado_generado && (
+                          <p className="text-[8px] text-emerald-600 font-black mt-0.5">Cert. {h.certificado_fecha_emision}</p>
+                        )}
+                      </div>
+                      {h.certificado_generado ? (
+                        <FaCheckCircle className="text-emerald-500" size={10} title="Certificado"/>
+                      ) : (
+                        <FaExclamationTriangle className="text-amber-400" size={10} title="En proceso"/>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-400">Sin cursos anteriores.</p>
+              )}
             </div>
             
             {/* --- ZONA DE ACCIONES DE CERTIFICACIÓN --- */}
@@ -220,7 +300,7 @@ export function TabListados({
                           <div>
                             <p className="text-xs font-bold text-slate-700 uppercase">{e.nombre}</p>
                             {e.certificado_generado && (
-                              <span className="text-[8px] font-black text-emerald-600 flex items-center gap-1">
+                              <span className="text-[9px] mt-0.5 font-black text-white bg-emerald-500 px-1.5 py-0.5 rounded shadow-sm flex w-fit items-center gap-1">
                                 <FaCheckCircle size={8}/> CERTIFICADO
                               </span>
                             )}

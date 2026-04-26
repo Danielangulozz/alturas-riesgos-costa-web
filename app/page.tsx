@@ -388,14 +388,23 @@ export default function HomePage() {
               </AnimateIn>
 
               <AnimateIn from="scaleUp" delay={300}>
-                <Link
-                  href="/certificados"
-                  className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-2xl shadow-blue-900/40 hover:shadow-blue-600/50 hover:-translate-y-1 transition-all duration-300"
-                >
-                  <FaShieldAlt size={14} />
-                  Validar Certificado Ahora
-                  <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1" />
-                </Link>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link
+                    href="/certificados"
+                    className="w-full sm:w-auto group inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-2xl shadow-blue-900/40 hover:shadow-blue-600/50 hover:-translate-y-1 transition-all duration-300"
+                  >
+                    <FaShieldAlt size={14} />
+                    Validar Certificado
+                  </Link>
+                  <Link
+                    href="/portal"
+                    className="w-full sm:w-auto group inline-flex items-center justify-center gap-3 px-8 py-5 bg-white/10 hover:bg-white border border-white/20 hover:border-white text-white hover:text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <FaUserGraduate size={14} />
+                    Portal Estudiantes
+                    <FaArrowRight size={11} className="transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
               </AnimateIn>
 
             </div>

@@ -14,11 +14,36 @@ export function useAdminActions({ fetchData, userName, userRole, registrarLog, u
   // 1. BORRAR REGISTRO
   const borrarRegistro = async (tabla: string, id: string) => {
     if (userRole !== 'admin_general' && userRole !== 'developer') return toast.error("⛔ Acceso Denegado");
+
+    let cedulaParaBorrar: string | null = null;
+    if (tabla === 'estudiantes' || tabla === 'preinscripciones') {
+      const { data } = await supabase.from(tabla).select('cedula').eq('id', id).single();
+      if (data) cedulaParaBorrar = data.cedula;
+    }
+
     const { error } = await supabase.from(tabla).delete().eq('id', id);
     if (!error) { 
       toast.success("Eliminado"); 
       await registrarLog("Eliminó Registro", `Borró un registro de la tabla ${tabla}`);
+
+      // Limpieza de bucket si el estudiante no tiene más cursos
+      if (cedulaParaBorrar && (tabla === 'estudiantes' || tabla === 'preinscripciones')) {
+        const { count: c1 } = await supabase.from('preinscripciones').select('*', { count: 'exact', head: true }).eq('cedula', cedulaParaBorrar);
+        const { count: c2 } = await supabase.from('estudiantes').select('*', { count: 'exact', head: true }).eq('cedula', cedulaParaBorrar);
+        
+        if ((c1 || 0) + (c2 || 0) === 0) {
+          const { data: files } = await supabase.storage.from('docs_students').list(cedulaParaBorrar);
+          if (files && files.length > 0) {
+            const filePaths = files.map(f => `${cedulaParaBorrar}/${f.name}`);
+            await supabase.storage.from('docs_students').remove(filePaths);
+            console.log(`Archivos de bucket eliminados para la cédula ${cedulaParaBorrar}`);
+          }
+        }
+      }
+
       fetchData(); 
+    } else {
+      toast.error("Error al eliminar");
     }
   };
 

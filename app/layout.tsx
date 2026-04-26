@@ -85,8 +85,9 @@ export const metadata: Metadata = {
       { url: "/logo-negro.webp", media: "(prefers-color-scheme: dark)" },
     ],
     shortcut: "/logo-blanco.webp",
-    apple: "/logo-blanco.webp",
+    apple: "/LOGOSOLO.png",
   },
+  manifest: "/manifest.json",
 
   other: {
     "geo.region": "CO-SU",
