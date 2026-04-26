@@ -1,6 +1,7 @@
 import React from "react";
 import * as htmlToImage from 'html-to-image';
-import { FaShieldAlt, FaCalendarAlt, FaUsers, FaFire, FaClock, FaClipboardList, FaChartLine, FaArrowRight, FaExclamationTriangle, FaWhatsapp } from "react-icons/fa";
+import * as XLSX from 'xlsx';
+import { FaShieldAlt, FaCalendarAlt, FaUsers, FaFire, FaClock, FaClipboardList, FaChartLine, FaArrowRight, FaExclamationTriangle, FaWhatsapp, FaFileExcel } from "react-icons/fa";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface TabDashboardProps {
@@ -50,6 +51,51 @@ export function TabDashboard({
     }
   };
 
+  // Exportar reporte completo del Dashboard a Excel
+  const exportarReporteDashboard = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: Resumen General
+    const resumen = [
+      { Indicador: 'Total Estudiantes', Valor: statsDashboard.totalAlumnos },
+      { Indicador: 'Solicitudes Pendientes', Valor: statsDashboard.solicitudesPendientes },
+      { Indicador: 'Incidencias Hoy', Valor: statsDashboard.cambiosHoy },
+      { Indicador: 'Próximos Cursos', Valor: statsDashboard.proximosCursos?.length || 0 },
+      { Indicador: 'Certificados por Vencer (30d)', Valor: statsDashboard.estudiantesPorVencer?.length || 0 },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), 'Resumen');
+
+    // Hoja 2: Historial de Matrículas
+    if (statsDashboard.historialInscripciones?.length) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(statsDashboard.historialInscripciones), 'Matrículas Mensual');
+    }
+
+    // Hoja 3: Distribución de Cursos
+    if (statsDashboard.distribucionCursos?.length) {
+      const distData = statsDashboard.distribucionCursos.map((c: any) => ({ Curso: c.name, Alumnos: c.value }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(distData), 'Distribución Cursos');
+    }
+
+    // Hoja 4: Próximos Cursos
+    if (statsDashboard.proximosCursos?.length) {
+      const proxData = statsDashboard.proximosCursos.map((c: any) => ({
+        Curso: c.curso, Fecha: c.fecha, Hora: c.hora, Intensidad: c.intensidad_horaria
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(proxData), 'Próximos Cursos');
+    }
+
+    // Hoja 5: Estudiantes por Vencer
+    if (statsDashboard.estudiantesPorVencer?.length) {
+      const vencData = statsDashboard.estudiantesPorVencer.map((e: any) => ({
+        Nombre: e.nombre, Teléfono: e.telefono,
+        Vencimiento: e.certificado_fecha_vencimiento
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vencData), 'Por Vencer');
+    }
+
+    XLSX.writeFile(wb, `Reporte_Dashboard_${new Date().toLocaleDateString('es-CO').replace(/\//g, '-')}.xlsx`);
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -88,12 +134,18 @@ export function TabDashboard({
               </p>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-wrap gap-3">
               <button
                 onClick={() => setActiveTab('listados')}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/40 flex items-center gap-2 active:scale-95"
               >
                 Calendario de Operaciones <FaArrowRight size={10} />
+              </button>
+              <button
+                onClick={exportarReporteDashboard}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/40 flex items-center gap-2 active:scale-95"
+              >
+                <FaFileExcel size={12} /> Exportar Reporte
               </button>
               <button
                 onClick={() => setActiveTab('config')}

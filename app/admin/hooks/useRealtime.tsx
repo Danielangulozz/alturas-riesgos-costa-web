@@ -1,15 +1,17 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
-import { FaClipboardList, FaCloudUploadAlt, FaTimes, FaUserPlus } from "react-icons/fa";
+import { FaClipboardList, FaCloudUploadAlt, FaTimes, FaUserPlus, FaBug, FaCommentDots } from "react-icons/fa";
 
 interface UseRealtimeProps {
   fetchData: () => void;
   setActiveTab: (tab: string) => void;
   setNotificacionesNuevas: React.Dispatch<React.SetStateAction<number>>;
+  userName?: string;
+  userRole?: string;
 }
 
-export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }: UseRealtimeProps) {
+export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas, userName, userRole }: UseRealtimeProps) {
   // Usamos useRef para el audio, así no se recarga en cada render
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -21,14 +23,33 @@ export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }
       audioRef.current.volume = 0.6;
     }
 
+    // Solicitar permiso de notificaciones del navegador al montar
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     const playNotificationSound = () => {
       if (audioRef.current) {
-        audioRef.current.currentTime = 0; // Reinicia el sonido por si suenan dos seguidos
+        audioRef.current.currentTime = 0;
         audioRef.current.play().catch(e => console.log("Audio bloqueado por navegador hasta interacción", e));
       }
     };
 
-    const manejarNotificacion = (payload: any, tipo: 'solicitud' | 'nuevo_registro' | 'documentos') => {
+    // Enviar notificación nativa del navegador
+    const enviarNotificacionNativa = (titulo: string, cuerpo: string) => {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(titulo, {
+            body: cuerpo,
+            icon: '/logo.png',
+            badge: '/logo.png',
+            tag: 'alturas-admin',
+          });
+        } catch (e) { /* SW not available */ }
+      }
+    };
+
+    const manejarNotificacion = (payload: any, tipo: 'solicitud' | 'nuevo_registro' | 'documentos' | 'ticket_nuevo' | 'ticket_resuelto') => {
       playNotificationSound();
       setNotificacionesNuevas((prev) => prev + 1);
       fetchData(); 
@@ -63,7 +84,24 @@ export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }
           gradienteBg = "bg-gradient-to-br from-amber-100 to-orange-50 border-amber-200";
           iconoColor = "text-amber-600 bg-white";
           break;
+        case 'ticket_nuevo':
+          titulo = "Nuevo Ticket de Soporte";
+          subtitulo = `${payload.new.usuario} ha reportado un problema.`;
+          icono = <FaBug size={18} />;
+          gradienteBg = "bg-gradient-to-br from-indigo-100 to-slate-50 border-indigo-200";
+          iconoColor = "text-indigo-600 bg-white";
+          break;
+        case 'ticket_resuelto':
+          titulo = "Ticket Resuelto";
+          subtitulo = `El desarrollador respondió a tu ticket.`;
+          icono = <FaCommentDots size={18} />;
+          gradienteBg = "bg-gradient-to-br from-emerald-100 to-green-50 border-emerald-200";
+          iconoColor = "text-emerald-600 bg-white";
+          break;
       }
+
+      // Notificación nativa del navegador
+      enviarNotificacionNativa(`🔔 ${titulo}`, subtitulo);
 
       toast.custom((t) => (
         <div className={`${t.visible ? 'animate-in slide-in-from-right-8 fade-in duration-300' : 'animate-out slide-out-to-right-8 fade-out duration-300'} 
@@ -89,9 +127,12 @@ export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }
           {/* Botón de Acción */}
           <button 
             onClick={() => {
-              setActiveTab(tipo === 'solicitud' ? 'solicitudes' : 'lista');
+              if (tipo === 'ticket_nuevo') setActiveTab('tickets');
+              else if (tipo === 'ticket_resuelto') setActiveTab('guia');
+              else setActiveTab(tipo === 'solicitud' ? 'solicitudes' : 'lista');
+              
               toast.dismiss(t.id);
-              if (tipo !== 'solicitud') setNotificacionesNuevas(0); 
+              if (tipo !== 'solicitud' && tipo !== 'ticket_nuevo' && tipo !== 'ticket_resuelto') setNotificacionesNuevas(0); 
             }} 
             className="w-full bg-slate-50 hover:bg-slate-100 p-3 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase tracking-widest transition-colors"
           >
@@ -139,8 +180,33 @@ export function useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas }
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes' }, (payload: any) => {
           manejarNotificacion(payload, 'solicitud');
       })
+      // ESCUCHAR TICKETS DE SOPORTE (Insert = Notificar Devs | Update = Notificar Usuario si Resuelto)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets_soporte' }, (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            if (userRole === 'admin_general' || userRole === 'developer') {
+              manejarNotificacion(payload, 'ticket_nuevo');
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const newData = payload.new || {};
+            
+            // Resolvemos si el ticket se pone en "Resuelto"
+            if (newData.estado === 'Resuelto') {
+              // Solo notificamos al usuario dueño del ticket
+              if (newData.usuario === userName) {
+                manejarNotificacion(payload, 'ticket_resuelto');
+              }
+            } 
+            // Si el estado es "Pendiente" y no es un INSERT (es un UPDATE), es un reabierto
+            else if (newData.estado === 'Pendiente') {
+               // Solo notificamos a los desarrolladores, y si el que lo reabrió no fue el propio dev probando
+               if ((userRole === 'admin_general' || userRole === 'developer') && newData.usuario !== userName) {
+                 manejarNotificacion(payload, 'ticket_nuevo');
+               }
+            }
+          }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetchData, setActiveTab, setNotificacionesNuevas]); 
+  }, [fetchData, setActiveTab, setNotificacionesNuevas, userName, userRole]); 
 }

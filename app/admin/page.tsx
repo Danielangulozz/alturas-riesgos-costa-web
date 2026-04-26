@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FaUsers, FaUserPlus, FaSignOutAlt, FaUserCog, FaEnvelope, FaShieldAlt,
   FaTrash, FaIdCard, FaFileMedical, FaShieldVirus, FaBars, FaTimes,
   FaCalendarAlt, FaPhoneAlt, FaClipboardList, FaPlus, FaSync, FaCheckCircle,
   FaUserCheck, FaBuilding, FaUserTie, FaMoneyBillWave, FaHistory,
   FaExternalLinkAlt, FaFilePdf, FaExclamationTriangle, FaCopy, FaTimesCircle, FaClock,
-  FaMapMarkerAlt, FaUser, FaTrashAlt, FaFire, FaChartLine, FaBell, FaCloudUploadAlt
+  FaMapMarkerAlt, FaUser, FaTrashAlt, FaFire, FaChartLine, FaBell, FaCloudUploadAlt, FaQuestionCircle
 } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,8 @@ const TabEquipo = dynamic(() => import('./components/TabEquipo').then(m => m.Tab
 const TabLogs = dynamic(() => import('./components/TabLogs').then(m => m.TabLogs), { loading: () => <LoadingTab /> });
 const TabPrecios = dynamic(() => import('./components/TabPrecios').then(m => m.TabPrecios), { loading: () => <LoadingTab /> });
 const TabConfig = dynamic(() => import('./components/TabConfig').then(m => m.TabConfig), { loading: () => <LoadingTab /> });
+const TabGuia = dynamic(() => import('./components/TabGuia').then(m => m.TabGuia), { loading: () => <LoadingTab /> });
+const TabTicketsDev = dynamic(() => import('./components/TabTicketsDev').then(m => m.TabTicketsDev), { loading: () => <LoadingTab /> });
 
 // --- MAPA DE TÍTULOS ---
 const titulos: Record<string, string> = {
@@ -51,6 +53,8 @@ const titulos: Record<string, string> = {
   logs: 'Auditoría',
   precios: 'Precios',
   config: 'Mi Perfil',
+  guia: 'Guía y Soporte',
+  tickets: 'Centro Desarrollador',
 };
 
 export default function AdminDashboard() {
@@ -58,7 +62,7 @@ export default function AdminDashboard() {
 
   // --- HOOKS ---
   const {
-    isRefreshing, listaPerfiles, estudiantes, preinscripciones,
+    isRefreshing, isLoadingMore, totalRegistros, listaPerfiles, estudiantes, preinscripciones,
     solicitudes, agendaBD, catalogoCursos, logsRecientes, fetchData,
     historialInscripciones, hasMoreLogs, fetchMasLogs,
     hasMoreEstudiantes, fetchMasEstudiantes
@@ -89,6 +93,7 @@ export default function AdminDashboard() {
   const [datosARL, setDatosARL] = useState({ nombre: "", nit: "" });
   const [notificacionesNuevas, setNotificacionesNuevas] = useState(0);
   const [busqueda, setBusqueda] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
   const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
   const [preciosEditados, setPreciosEditados] = useState<{ [key: string]: string }>({});
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0]);
@@ -153,7 +158,65 @@ export default function AdminDashboard() {
     return () => clearTimeout(timeout);
   }, [busqueda, loading, fetchData]);
 
-  useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas });
+  useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas, userName: userName || undefined, userRole: userRole || undefined });
+
+  // --- DARK MODE: Sincronizar con clase del <html> ---
+  useEffect(() => {
+    const saved = localStorage.getItem('admin_dark_mode');
+    if (saved === 'true') setDarkMode(true);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('admin_dark_mode', darkMode ? 'true' : 'false');
+  }, [darkMode]);
+
+  // --- ATAJOS DE TECLADO ---
+  useEffect(() => {
+    const tabMap: Record<string, string> = {
+      '0': 'guia', '1': 'dashboard', '2': 'lista', '3': 'solicitudes',
+      '4': 'agenda', '5': 'estudiantes', '6': 'listados',
+      '7': 'equipo', '8': 'logs', '9': 'precios'
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K = Enfocar buscador
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setActiveTab('lista');
+        setTimeout(() => {
+          const searchInput = document.querySelector('input[placeholder*="Buscar"]') as HTMLInputElement;
+          if (searchInput) searchInput.focus();
+        }, 400);
+        return;
+      }
+
+      // Ctrl+D = Toggle dark mode
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        setDarkMode(prev => !prev);
+        return;
+      }
+
+      // Ctrl+1-9 = Cambiar pestaña
+      if ((e.ctrlKey || e.metaKey) && tabMap[e.key]) {
+        e.preventDefault();
+        setActiveTab(tabMap[e.key]);
+        return;
+      }
+
+      // Escape = Cerrar modales y menus
+      if (e.key === 'Escape') {
+        setIsProfileMenuOpen(false);
+        setIsModalEquipoOpen(false);
+        setModalOpen(false);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // --- LÓGICA DE NEGOCIO ---
 
@@ -241,7 +304,7 @@ export default function AdminDashboard() {
 
   // --- RENDER ---
   return (
-    <div className="flex h-screen bg-slate-100 text-slate-800 overflow-hidden selection:bg-blue-500 selection:text-white">
+    <div className={`flex h-screen text-slate-800 overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
       <Toaster position="bottom-right" />
 
       <ModalReporte
@@ -272,13 +335,13 @@ export default function AdminDashboard() {
         userRole={userRole}
       />
 
-      <main className={`flex-1 h-screen overflow-y-auto bg-[#f8fafc] relative transition-all duration-300 ${isCollapsed ? 'lg:pl-0' : ''}`}>
+      <main className={`flex-1 h-screen overflow-y-auto relative transition-all duration-300 ${isCollapsed ? 'lg:pl-0' : ''} ${darkMode ? 'bg-slate-900' : 'bg-[#f8fafc]'}`}>
         <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto">
 
           {/* HEADER EJECUTIVO */}
-          <header className="flex flex-col sm:flex-row justify-between items-end sm:items-center mb-10 gap-4 pt-12 lg:pt-0 border-b border-slate-200/60 pb-8">
+          <header className={`flex flex-col sm:flex-row justify-between items-end sm:items-center mb-10 gap-4 pt-12 lg:pt-0 pb-8 border-b ${darkMode ? 'border-slate-700/60' : 'border-slate-200/60'}`}>
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-              <h2 className="text-3xl font-black text-[#0F172A] uppercase tracking-tight leading-none mb-2">
+              <h2 className={`text-3xl font-black uppercase tracking-tight leading-none mb-2 ${darkMode ? 'text-white' : 'text-[#0F172A]'}`}>
                 {titulos[activeTab] || activeTab}
               </h2>
               <div className="flex items-center gap-2">
@@ -287,11 +350,30 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* DARK MODE TOGGLE + PERFIL */}
+            <div className="flex items-center gap-3">
+              {/* Toggle Dark Mode */}
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm active:scale-90 ${
+                  darkMode 
+                    ? 'bg-slate-700 text-yellow-400 border border-slate-600 hover:bg-slate-600' 
+                    : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+                }`}
+                title="Modo oscuro (Ctrl+D)"
+              >
+                {darkMode ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                )}
+              </button>
+
             {/* WIDGET PERFIL - PROFESIONAL (Desplegable) */}
             <div className="relative">
               <div
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-4 bg-white pl-2 pr-5 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition-all cursor-pointer group"
+                className={`flex items-center gap-4 pl-2 pr-5 py-2 rounded-xl border shadow-sm hover:border-blue-500 transition-all cursor-pointer group ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
               >
                 <div className="w-10 h-10 bg-[#0F172A] rounded-lg flex items-center justify-center font-black text-[#FFD700] text-base group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
                   {userName && userName !== "Cargando..." ? userName.charAt(0).toUpperCase() : "?"}
@@ -331,6 +413,12 @@ export default function AdminDashboard() {
                         >
                           <FaUserCog /> Mi Perfil
                         </button>
+                        <button
+                          onClick={() => { setActiveTab('guia'); setIsProfileMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                        >
+                          <FaQuestionCircle /> Guía / Soporte
+                        </button>
                         <div className="h-px bg-slate-100 my-1" />
                         <button
                           onClick={() => { 
@@ -351,6 +439,7 @@ export default function AdminDashboard() {
                   </>
                 )}
               </AnimatePresence>
+            </div>
             </div>
           </header>
  
@@ -408,6 +497,8 @@ export default function AdminDashboard() {
                   triggerConfirm={triggerConfirm}
                   hasMoreEstudiantes={hasMoreEstudiantes}
                   fetchMasEstudiantes={fetchMasEstudiantes}
+                  isLoadingMore={isLoadingMore}
+                  totalRegistros={totalRegistros}
                 />
               )}
 
@@ -478,6 +569,7 @@ export default function AdminDashboard() {
                   cerrarSesion={cerrarSesion}
                   currentSessionSeconds={currentSessionSeconds}
                   triggerConfirm={triggerConfirm}
+                  setActiveTab={setActiveTab}
                 />
               )}
 
@@ -492,6 +584,14 @@ export default function AdminDashboard() {
                   setIsModalEquipoOpen={setIsModalEquipoOpen}
                   handleCrearUsuarioManual={handleCrearUsuarioManual}
                 />
+              )}
+
+              {activeTab === "guia" && (
+                <TabGuia userName={userName} userRole={userRole} />
+              )}
+
+              {activeTab === "tickets" && (
+                <TabTicketsDev />
               )}
             </motion.div>
           </AnimatePresence>

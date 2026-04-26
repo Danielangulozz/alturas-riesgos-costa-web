@@ -105,10 +105,12 @@ export default function AdminLogin() {
 
         {/* Logo & Header */}
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/logo-blanco.webp" alt="ARC Logo" className="w-16 h-16 drop-shadow-2xl" />
+          <img src="/logosolo.png" alt="ARC Logo" className="w-16 h-16 drop-shadow-2xl" />
           <div>
-            <h2 className="text-white font-black text-2xl tracking-tight uppercase leading-none">Alturas y Riesgos</h2>
-            <p className="text-blue-400 font-bold text-[10px] tracking-[0.2em] uppercase mt-1">De La Costa S.A.S.</p>
+            <h2 className="text-white font-black text-2xl tracking-widest uppercase leading-none">
+              <span className="text-slate-400">ARC</span> SYSTEM
+            </h2>
+            <p className="text-slate-400 font-bold text-[10px] tracking-[0.2em] uppercase mt-1">by Alturas y Riesgos de la Costa</p>
           </div>
         </div>
 
@@ -119,7 +121,7 @@ export default function AdminLogin() {
             Sistema de Información Interno
           </div>
           <h1 className="text-5xl 2xl:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-6">
-            Control <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200 drop-shadow-sm">Administrativo</span>
+            Gestión <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200 drop-shadow-sm">Inteligente</span>
           </h1>
           <p className="text-slate-400 text-sm max-w-md font-medium leading-relaxed">
             Uso exclusivo para el personal autorizado de Alturas y Riesgos de la Costa S.A.S. Ingrese con sus credenciales institucionales para acceder a los módulos de gestión operativa y documental.
@@ -139,9 +141,11 @@ export default function AdminLogin() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center mb-8">
             <div className="bg-[#0F172A] p-4 rounded-3xl shadow-xl mb-4">
-              <img src="/logo-blanco.webp" alt="ARC Logo" className="w-14 h-14" />
+              <img src="/logosolo.png" alt="ARC Logo" className="w-14 h-14" />
             </div>
-            <h2 className="text-slate-800 font-black text-2xl tracking-tight uppercase text-center">Panel Admin</h2>
+            <h2 className="text-slate-800 font-black text-2xl tracking-widest uppercase text-center">
+              <span className="text-slate-400">ARC</span> SYSTEM
+            </h2>
           </div>
 
           <div className="bg-white p-8 sm:p-10 rounded-[32px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-slate-100 relative z-10">
@@ -197,7 +201,7 @@ export default function AdminLogin() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className={`w-full pl-11 pr-4 py-3.5 bg-slate-50 border rounded-xl outline-none transition-all font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans ${confirmPassword && newPassword !== confirmPassword ? 'border-red-400 focus:ring-4 focus:ring-red-500/10 focus:bg-white' :
-                          confirmPassword && newPassword === confirmPassword ? 'border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white' : 'border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white'
+                        confirmPassword && newPassword === confirmPassword ? 'border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white' : 'border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white'
                         }`}
                       placeholder="Repite tu clave"
                     />

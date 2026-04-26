@@ -10,50 +10,50 @@
 export function LoadingScreen() {
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
-      
+
       {/* Fondo con gradiente suave */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent opacity-60" />
 
       <div className="relative flex flex-col items-center z-10 animate-in fade-in duration-1000">
-        
+
         {/* Contenedor del Logo con anillo elegante */}
-        <div className="relative w-36 h-36 mb-10 flex items-center justify-center">
+        <div className="relative w-64 h-64 mb-10 flex items-center justify-center">
           {/* Anillo de progreso minimalista */}
           <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-            <circle 
-              cx="50" cy="50" r="46" 
-              fill="none" 
-              stroke="#e2e8f0" 
-              strokeWidth="1.5" 
+            <circle
+              cx="50" cy="50" r="46"
+              fill="none"
+              stroke="#e2e8f0"
+              strokeWidth="1.5"
             />
-            <circle 
-              cx="50" cy="50" r="46" 
-              fill="none" 
-              stroke="#2563eb" 
-              strokeWidth="2" 
+            <circle
+              cx="50" cy="50" r="46"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
               strokeDasharray="40 300"
               strokeLinecap="round"
               className="animate-[spin_1.5s_linear_infinite]"
             />
           </svg>
-          
-          <div className="bg-white rounded-full p-6 shadow-sm border border-slate-100 flex items-center justify-center w-28 h-28 relative">
-            <img 
-              src="/logo.png" 
-              alt="ARC Logo" 
-              className="w-16 h-16 object-contain opacity-90 animate-pulse" 
+
+          <div className="bg-white rounded-full shadow-sm border border-slate-100 flex items-center justify-center w-56 h-56 relative overflow-hidden">
+            <img
+              src="/logoarc.png"
+              alt="ARC Logo"
+              className="w-full h-full object-contain p-6 opacity-90 animate-pulse"
             />
           </div>
         </div>
 
         <div className="text-center space-y-4">
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase flex items-center justify-center gap-2">
-              Alturas <span className="text-blue-600">&</span> Riesgos
+            <h2 className="text-2xl font-black text-slate-900 tracking-widest uppercase flex items-center justify-center gap-2">
+              <span className="text-slate-400">ARC</span> SYSTEM
             </h2>
             <div className="h-1 w-12 bg-amber-400 mx-auto rounded-full" />
           </div>
-          
+
           <div className="flex flex-col items-center gap-2">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">
               Acceso Seguro
@@ -61,11 +61,11 @@ export function LoadingScreen() {
           </div>
         </div>
       </div>
-      
+
       {/* Footer minimalista */}
       <div className="absolute bottom-10 left-0 w-full text-center">
         <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-          Sistema de Gestión Interna v2.0
+          ARC SYSTEM v2.4.1
         </p>
       </div>
     </div>

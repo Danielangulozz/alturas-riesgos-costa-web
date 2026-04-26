@@ -21,6 +21,8 @@ export function useData() {
 
   const [hasMoreEstudiantes, setHasMoreEstudiantes] = useState(true);
   const [estudiantesPage, setEstudiantesPage] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalRegistros, setTotalRegistros] = useState(0);
 
   const fetchData = useCallback(async (esManual = false, search = "") => {
     if (esManual) setIsRefreshing(true);
@@ -29,14 +31,20 @@ export function useData() {
       let queryEst = supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
       let queryPre = supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
 
+      // Obtener conteo total (siempre, para el indicador)
+      const [countEst, countPre] = await Promise.all([
+        supabase.from('estudiantes').select('*', { count: 'exact', head: true }),
+        supabase.from('preinscripciones').select('*', { count: 'exact', head: true })
+      ]);
+      setTotalRegistros((countEst.count || 0) + (countPre.count || 0));
+
       if (search) {
-        // Búsqueda en servidor si hay texto
-        const filter = `nombre.ilike.%${search}%,cedula.ilike.%${search}%`;
+        // Búsqueda ampliada: nombre, cédula, teléfono, curso, empresa
+        const filter = `nombre.ilike.%${search}%,cedula.ilike.%${search}%,telefono.ilike.%${search}%,curso.ilike.%${search}%,empresa.ilike.%${search}%`;
         queryEst = queryEst.or(filter);
         queryPre = queryPre.or(filter);
-        setHasMoreEstudiantes(false); // Al buscar, traemos lo que coincida de una vez
+        setHasMoreEstudiantes(false);
       } else {
-        // Paginación si no hay búsqueda
         queryEst = queryEst.range(0, 19);
         queryPre = queryPre.range(0, 19);
         setEstudiantesPage(0);
@@ -75,23 +83,28 @@ export function useData() {
   }, []);
 
   const fetchMasEstudiantes = async () => {
-    const nextPage = estudiantesPage + 1;
-    const from = nextPage * 20;
-    const to = from + 19;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = estudiantesPage + 1;
+      const from = nextPage * 20;
+      const to = from + 19;
 
-    const [est, pre] = await Promise.all([
-      supabase.from('estudiantes').select('*').order('created_at', { ascending: false }).range(from, to),
-      supabase.from('preinscripciones').select('*').order('created_at', { ascending: false }).range(from, to)
-    ]);
+      const [est, pre] = await Promise.all([
+        supabase.from('estudiantes').select('*').order('created_at', { ascending: false }).range(from, to),
+        supabase.from('preinscripciones').select('*').order('created_at', { ascending: false }).range(from, to)
+      ]);
 
-    const newEst = est.data || [];
-    const newPre = pre.data || [];
+      const newEst = est.data || [];
+      const newPre = pre.data || [];
 
-    if (newEst.length < 20 && newPre.length < 20) setHasMoreEstudiantes(false);
-    
-    setEstudiantes(prev => [...prev, ...newEst]);
-    setPreinscripciones(prev => [...prev, ...newPre]);
-    setEstudiantesPage(nextPage);
+      if (newEst.length < 20 && newPre.length < 20) setHasMoreEstudiantes(false);
+      
+      setEstudiantes(prev => [...prev, ...newEst]);
+      setPreinscripciones(prev => [...prev, ...newPre]);
+      setEstudiantesPage(nextPage);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const fetchMasLogs = async () => {
@@ -154,6 +167,8 @@ export function useData() {
 
   return {
     isRefreshing,
+    isLoadingMore,
+    totalRegistros,
     listaPerfiles,
     estudiantes,
     preinscripciones,
@@ -166,6 +181,6 @@ export function useData() {
     hasMoreEstudiantes,
     fetchMasEstudiantes,
     fetchData,
-    historialInscripciones, // <-- Exportamos la gráfica aquí
+    historialInscripciones,
   };
 }

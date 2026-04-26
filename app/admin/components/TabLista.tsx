@@ -32,19 +32,30 @@ interface TabListaProps {
   triggerConfirm: (title: string, message: string, onConfirm: () => void, type?: 'danger' | 'warning' | 'info' | 'success') => void;
   hasMoreEstudiantes: boolean;
   fetchMasEstudiantes: () => Promise<void>;
+  isLoadingMore: boolean;
+  totalRegistros: number;
 }
 
 export function TabLista({
   busqueda, setBusqueda, fetchData, isRefreshing, listaUnificada, agendaBD,
   toggleVerificacion, actualizarEstadoEstudiante, generarReporte, borrarRegistro,
   modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado, triggerConfirm,
-  hasMoreEstudiantes, fetchMasEstudiantes
+  hasMoreEstudiantes, fetchMasEstudiantes, isLoadingMore, totalRegistros
 }: TabListaProps) {
 
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [filtroPago, setFiltroPago] = React.useState<string>('');
+  const [filtroAptitud, setFiltroAptitud] = React.useState<string>('');
 
-  const selectedItems = listaUnificada.filter(i => selectedIds.includes(i.id));
+  // Aplicar filtros locales sobre la lista unificada
+  const listaFiltrada = listaUnificada.filter(item => {
+    if (filtroPago && (item.estado_pago || 'Pendiente') !== filtroPago) return false;
+    if (filtroAptitud && (item.resultado_final || 'Pendiente') !== filtroAptitud) return false;
+    return true;
+  });
+
+  const selectedItems = listaFiltrada.filter(i => selectedIds.includes(i.id));
   const allSameCourse = selectedItems.length > 0 && selectedItems.every(i => i.curso === selectedItems[0].curso);
   const courseForAgenda = allSameCourse ? selectedItems[0].curso : null;
   const hasPendingPayment = selectedItems.some(i => i.estado_pago !== 'Pagado' && i.estadoPago !== 'Pagado');
@@ -54,15 +65,15 @@ export function TabLista({
   };
 
   const toggleSeleccionarTodo = () => {
-    if (selectedIds.length === listaUnificada.length) {
+    if (selectedIds.length === listaFiltrada.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(listaUnificada.map(item => item.id));
+      setSelectedIds(listaFiltrada.map(item => item.id));
     }
   };
 
   const handleBulkAction = async (action: string, value?: string) => {
-    const selectedItems = listaUnificada.filter(i => selectedIds.includes(i.id));
+    const selectedItems = listaFiltrada.filter(i => selectedIds.includes(i.id));
     if (selectedItems.length === 0) return;
 
     if (action === 'delete') {
@@ -211,13 +222,61 @@ export function TabLista({
         <div className="relative group">
           <input
             type="text"
-            placeholder="Buscar por nombre o cédula..."
+            placeholder="Buscar por nombre, cédula, teléfono, curso o empresa..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium text-slate-700"
           />
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
             <FaUser size={14} />
+          </div>
+        </div>
+
+        {/* FILTROS RÁPIDOS */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Filtros:</span>
+          
+          {/* Filtro Pago */}
+          <select
+            value={filtroPago}
+            onChange={(e) => setFiltroPago(e.target.value)}
+            className={`text-[10px] px-3 py-1.5 rounded-xl font-bold border transition-all cursor-pointer outline-none ${
+              filtroPago ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-500'
+            }`}
+          >
+            <option value="">Todos los pagos</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Pendiente">Pendiente</option>
+          </select>
+
+          {/* Filtro Aptitud */}
+          <select
+            value={filtroAptitud}
+            onChange={(e) => setFiltroAptitud(e.target.value)}
+            className={`text-[10px] px-3 py-1.5 rounded-xl font-bold border transition-all cursor-pointer outline-none ${
+              filtroAptitud ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'
+            }`}
+          >
+            <option value="">Todas las aptitudes</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="APTO">APTO</option>
+            <option value="NO APTO">NO APTO</option>
+            <option value="CERTIFICADO">CERTIFICADO</option>
+          </select>
+
+          {(filtroPago || filtroAptitud) && (
+            <button
+              onClick={() => { setFiltroPago(''); setFiltroAptitud(''); }}
+              className="text-[9px] px-2.5 py-1.5 rounded-xl bg-red-50 text-red-500 font-bold border border-red-100 hover:bg-red-100 transition-all"
+            >
+              Limpiar
+            </button>
+          )}
+
+          {/* CONTADOR DE REGISTROS */}
+          <div className="ml-auto text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            Mostrando <span className="text-slate-700 font-black">{listaFiltrada.length}</span> de <span className="text-slate-700 font-black">{totalRegistros}</span> registros
           </div>
         </div>
 
@@ -248,7 +307,15 @@ export function TabLista({
       <div className="space-y-4">
         {/* VISTA MÓVIL (CARDS) */}
         <div className="grid grid-cols-1 gap-4 md:hidden">
-          {listaUnificada.map((item: any) => {
+          {listaFiltrada.length === 0 ? (
+            <div className="col-span-full py-16 text-center">
+              <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <FaUser size={30} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No se encontraron registros</p>
+              <p className="text-xs text-slate-400 mt-2">Intenta con otra búsqueda o limpia los filtros</p>
+            </div>
+          ) : listaFiltrada.map((item: any) => {
             const reqs = obtenerRequeridos(item.curso);
             let verificacion = item.doc_verification;
             if (typeof verificacion === 'string') {
@@ -370,10 +437,11 @@ export function TabLista({
             <div className="flex justify-center pt-4">
               <button 
                 onClick={fetchMasEstudiantes}
-                className="px-8 py-4 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-3"
+                disabled={isLoadingMore}
+                className="px-8 py-4 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-3 disabled:opacity-50"
               >
-                <FaSync className={isRefreshing ? "animate-spin" : ""} />
-                Cargar más estudiantes
+                <FaSync className={isLoadingMore ? "animate-spin" : ""} />
+                {isLoadingMore ? "Cargando..." : "Cargar más"}
               </button>
             </div>
           )}
@@ -387,7 +455,7 @@ export function TabLista({
                 <th className="px-6 py-5 w-10 text-center">
                   <input
                     type="checkbox"
-                    checked={selectedIds.length > 0 && selectedIds.length === listaUnificada.length}
+                    checked={selectedIds.length > 0 && selectedIds.length === listaFiltrada.length}
                     onChange={toggleSeleccionarTodo}
                     className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -401,7 +469,7 @@ export function TabLista({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {listaUnificada.map((item: any) => {
+              {listaFiltrada.map((item: any) => {
                 const reqs = obtenerRequeridos(item.curso);
                 let verificacion = item.doc_verification;
                 if (typeof verificacion === 'string') {
@@ -602,11 +670,23 @@ export function TabLista({
             <div className="flex justify-center py-6 border-t border-slate-100 bg-slate-50/50">
               <button 
                 onClick={fetchMasEstudiantes}
-                className="px-8 py-3.5 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-2.5 group"
+                disabled={isLoadingMore}
+                className="px-8 py-3.5 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-2.5 group disabled:opacity-50 disabled:cursor-wait"
               >
-                <FaSync className={`group-hover:rotate-180 transition-transform duration-500 ${isRefreshing ? "animate-spin" : ""}`} />
-                Cargar más registros
+                <FaSync className={`transition-transform duration-500 ${isLoadingMore ? "animate-spin" : "group-hover:rotate-180"}`} />
+                {isLoadingMore ? "Cargando registros..." : "Cargar más registros"}
               </button>
+            </div>
+          )}
+
+          {/* Empty State para escritorio */}
+          {listaFiltrada.length === 0 && (
+            <div className="py-16 text-center">
+              <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <FaUser size={30} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No se encontraron registros</p>
+              <p className="text-xs text-slate-400 mt-2">Intenta con otra búsqueda o limpia los filtros</p>
             </div>
           )}
         </div>

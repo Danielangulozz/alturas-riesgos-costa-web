@@ -1,7 +1,7 @@
 import React from "react";
 import {
   FaClipboardList, FaCalendarAlt, FaUserPlus, FaUsers, FaUserCheck,
-  FaUserCog, FaHistory, FaMoneyBillWave, FaUser, FaChevronLeft, FaChevronRight, FaChartPie
+  FaUserCog, FaHistory, FaMoneyBillWave, FaUser, FaChevronLeft, FaChevronRight, FaChartPie, FaQuestionCircle, FaBug
 } from "react-icons/fa";
 
 interface SidebarProps {
@@ -31,6 +31,7 @@ export function Sidebar({
     { id: 'equipo', icon: <FaUserCog />, label: 'Gestionar Equipo', roles: ['admin_general', 'developer', 'director'] },
     { id: 'logs', icon: <FaHistory />, label: 'Auditoría / Logs', roles: ['admin_general', 'developer', 'director'] },
     { id: 'precios', icon: <FaMoneyBillWave />, label: 'Precios Cursos', roles: ['admin_general', 'developer', 'director'] },
+    { id: 'tickets', icon: <FaBug />, label: 'Soporte Dev', roles: ['admin_general', 'developer'] },
     { id: 'config', icon: <FaUser />, label: 'Mi Perfil', roles: ['admin_general', 'developer', 'director', 'coordinator', 'trainer'] },
   ];
 
@@ -43,7 +44,7 @@ export function Sidebar({
 
       {/* Overlay para móvil cuando el menú está abierto */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -60,35 +61,35 @@ export function Sidebar({
         {/* EFECTOS DE FONDO CORPORATIVOS (Igual que el login) */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-[80px] -translate-x-1/2 translate-y-1/2 pointer-events-none" />
-        
+
         {/* LOGO ARC CORPORATIVO */}
         <div className="relative p-6 border-b border-white/5 flex flex-col items-center shrink-0 z-10">
           <div className="cursor-pointer flex items-center gap-3 w-full" onClick={() => setActiveTab('dashboard')}>
-             <div className="relative group shrink-0">
-               <div className="absolute inset-0 bg-blue-400 rounded-xl blur opacity-0 group-hover:opacity-20 transition-opacity" />
-               <img 
-                 src="/logo-blanco.webp" 
-                 alt="ARC" 
-                 className={`transition-all duration-300 object-contain drop-shadow-xl ${isCollapsed ? 'w-10 h-10 mx-auto' : 'w-12 h-12'}`} 
-               />
-             </div>
-             
-             {!isCollapsed && (
-               <div className="flex flex-col animate-in slide-in-from-left-4 duration-300">
-                  <h1 className="text-white font-black text-lg tracking-tighter leading-tight uppercase">
-                    Alturas <span className="text-blue-400">&</span> Riesgos
-                  </h1>
-                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] -mt-0.5">
-                    Panel Administrativo
-                  </p>
-               </div>
-             )}
+            <div className="relative group shrink-0">
+              <div className="absolute inset-0 bg-slate-400 rounded-xl blur opacity-0 group-hover:opacity-20 transition-opacity" />
+              <img
+                src="/logosolo.png"
+                alt="ARC"
+                className={`transition-all duration-300 object-contain drop-shadow-xl ${isCollapsed ? 'w-10 h-10 mx-auto' : 'w-12 h-12'}`}
+              />
+            </div>
+
+            {!isCollapsed && (
+              <div className="flex flex-col animate-in slide-in-from-left-4 duration-300">
+                <h1 className="text-white font-black text-lg tracking-widest leading-tight uppercase">
+                  <span className="text-slate-400">ARC</span> SYSTEM
+                </h1>
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] -mt-0.5">
+                  by Alturas y Riesgos
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Botón Toggle */}
-          <button 
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 bg-[#1e293b] text-slate-400 w-6 h-6 rounded-full items-center justify-center border border-white/10 shadow-xl hover:text-white hover:bg-blue-600 transition-all z-20"
+            className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 bg-[#1e293b] text-slate-400 w-6 h-6 rounded-full items-center justify-center border border-white/10 shadow-xl hover:text-white hover:bg-slate-600 transition-all z-20"
           >
             {isCollapsed ? <FaChevronRight size={8} /> : <FaChevronLeft size={8} />}
           </button>
@@ -97,30 +98,30 @@ export function Sidebar({
         <nav className="flex-1 p-4 overflow-y-auto overflow-x-hidden hide-scrollbar relative z-10">
           <div className="space-y-1">
             {menuItems.filter(item => item.roles.includes(userRole)).map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => { 
-                  setActiveTab(item.id); 
-                  setIsSidebarOpen(false); 
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsSidebarOpen(false);
                   if (item.id === 'lista') setNotificacionesNuevas(0);
                 }}
                 className={`
                   w-full flex items-center transition-all duration-200 relative group
                   ${isCollapsed ? "justify-center px-0 py-3" : "px-4 py-3"}
-                  ${activeTab === item.id 
-                    ? "text-white bg-white/10 rounded-xl" 
+                  ${activeTab === item.id
+                    ? "text-white bg-white/10 rounded-xl"
                     : "text-slate-500 hover:text-slate-200 hover:bg-white/[0.03] rounded-xl"}
                 `}
               >
-                {/* Indicador lateral activo (Subtle blue accent) */}
+                {/* Indicador lateral activo (Subtle slate accent) */}
                 {activeTab === item.id && (
-                  <div className={`absolute left-0 w-1 h-6 bg-blue-500 rounded-r-full shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all`} />
+                  <div className={`absolute left-0 w-1 h-6 bg-slate-400 rounded-r-full shadow-[0_0_10px_rgba(148,163,184,0.5)] transition-all`} />
                 )}
 
                 <span className={`transition-all duration-300 ${activeTab === item.id ? 'text-blue-400 scale-110' : 'group-hover:text-slate-300 text-lg'}`}>
                   {item.icon}
                 </span>
-                
+
                 {!isCollapsed && (
                   <span className={`ml-4 text-[10px] font-black uppercase tracking-[0.2em] transition-opacity duration-300 ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
                     {item.label}
@@ -134,7 +135,7 @@ export function Sidebar({
                     {notificacionesNuevas}
                   </span>
                 )}
-                
+
                 {/* Tooltip para colapsado */}
                 {isCollapsed && (
                   <div className="absolute left-16 px-4 py-2 bg-[#1e293b] text-white text-[10px] font-black rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all z-50 whitespace-nowrap shadow-2xl border border-white/10 translate-x-2 group-hover:translate-x-0">
@@ -165,4 +166,4 @@ export function Sidebar({
       </aside>
     </>
   );
-}
+}
