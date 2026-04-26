@@ -30,12 +30,15 @@ interface TabListaProps {
   setDatosARL: React.Dispatch<React.SetStateAction<{ nombre: string; nit: string }>>;
   ejecutarCambioEstado: (item: any, docId: string, docLabel: string, newState: string) => void;
   triggerConfirm: (title: string, message: string, onConfirm: () => void, type?: 'danger' | 'warning' | 'info' | 'success') => void;
+  hasMoreEstudiantes: boolean;
+  fetchMasEstudiantes: () => Promise<void>;
 }
 
 export function TabLista({
   busqueda, setBusqueda, fetchData, isRefreshing, listaUnificada, agendaBD,
   toggleVerificacion, actualizarEstadoEstudiante, generarReporte, borrarRegistro,
-  modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado, triggerConfirm
+  modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado, triggerConfirm,
+  hasMoreEstudiantes, fetchMasEstudiantes
 }: TabListaProps) {
 
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
@@ -204,132 +207,122 @@ export function TabLista({
   return (
     <div className="space-y-4 animate-in fade-in">
       {/* BARRA DE BÚSQUEDA Y SINCRONIZACIÓN */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
-        <input
-          type="text"
-          placeholder="Buscar por nombre o cédula..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full p-2 bg-slate-50 border rounded-xl outline-none"
-        />
-        <button
-          onClick={exportarAExcel}
-          className="flex items-center gap-2 bg-[#107C41] hover:bg-[#0e6b38] text-white px-3 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-200/50 active:scale-95"
-          title="Descargar tabla actual en Excel"
-        >
-          <FaFileExcel size={14} />
-        </button>
-        <button
-          onClick={() => fetchData(true)}
-          disabled={isRefreshing}
-          className={`px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm ${isRefreshing
-            ? 'bg-blue-100 text-blue-400 cursor-wait'
-            : 'bg-slate-100 text-slate-600 hover:bg-white hover:text-blue-600 hover:shadow-md border border-transparent hover:border-blue-100'
-            }`}
-        >
-          <FaSync className={isRefreshing ? "animate-spin" : ""} />
-          {isRefreshing ? "Sincronizando..." : " "}
-        </button>
+      <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-200/60 flex flex-col gap-4">
+        <div className="relative group">
+          <input
+            type="text"
+            placeholder="Buscar por nombre o cédula..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium text-slate-700"
+          />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <FaUser size={14} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-3">
+          <button
+            onClick={exportarAExcel}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#107C41] hover:bg-[#0e6b38] text-white px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-green-200/50 active:scale-95 border-b-4 border-green-800"
+            title="Descargar tabla actual en Excel"
+          >
+            <FaFileExcel size={14} />
+            <span className="md:inline">Exportar</span>
+          </button>
+
+          <button
+            onClick={() => fetchData(true)}
+            disabled={isRefreshing}
+            className={`flex-1 md:flex-none px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 border-b-4 ${isRefreshing
+                ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-wait'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-white hover:text-blue-600 hover:border-blue-400 hover:shadow-md'
+              }`}
+          >
+            <FaSync className={isRefreshing ? "animate-spin" : ""} />
+            {isRefreshing ? "Cargando..." : "Actualizar"}
+          </button>
+        </div>
       </div>
 
-      {/* TABLA DE BASE DE DATOS */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-        <table className="w-full text-left text-sm min-w-[1200px]">
-          <thead>
-            <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase border-b font-black tracking-widest">
-              <th className="px-6 py-4 w-10">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.length > 0 && selectedIds.length === listaUnificada.length}
-                  onChange={toggleSeleccionarTodo}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-              </th>
-              <th className="px-6 py-4">Estudiante / Cédula</th>
-              <th className="px-6 py-4">Documentación</th>
-              <th className="px-6 py-4">Pago / Valor Final</th>
-              <th className="px-6 py-4">Aptitud</th>
-              <th className="px-6 py-4">Asignar Clase</th>
-              <th className="px-6 py-4 text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {listaUnificada.map((item: any) => {
-              const reqs = obtenerRequeridos(item.curso);
-              let verificacion = item.doc_verification;
-              if (typeof verificacion === 'string') {
-                try { verificacion = JSON.parse(verificacion); } catch (e) { verificacion = {}; }
-              }
-              verificacion = verificacion || {};
-              const esEmpresa = item.tipo_cliente === "Empresa" || (item.empresa && item.empresa !== "Particular / Independiente" && item.empresa !== "Particular");
+      <div className="space-y-4">
+        {/* VISTA MÓVIL (CARDS) */}
+        <div className="grid grid-cols-1 gap-4 md:hidden">
+          {listaUnificada.map((item: any) => {
+            const reqs = obtenerRequeridos(item.curso);
+            let verificacion = item.doc_verification;
+            if (typeof verificacion === 'string') {
+              try { verificacion = JSON.parse(verificacion); } catch (e) { verificacion = {}; }
+            }
+            verificacion = verificacion || {};
+            const esEmpresa = item.tipo_cliente === "Empresa" || (item.empresa && item.empresa !== "Particular / Independiente" && item.empresa !== "Particular");
 
-              return (
-                <tr key={item.id + item.origen} className={`transition group ${selectedIds.includes(item.id) ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-
-                  {/* COLUMNA CHECKBOX */}
-                  <td className="px-6 py-4">
+            return (
+              <div key={item.id + item.origen} className={`rounded-3xl border p-5 transition-all shadow-sm ${selectedIds.includes(item.id) ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/10' : 'bg-white border-slate-200'}`}>
+                {/* Header Card */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex gap-2 items-center">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
                       onChange={() => toggleSeleccion(item.id)}
-                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                  </td>
-
-                  {/* COLUMNA 1: INFO ESTUDIANTE */}
-                  <td className="px-6 py-4">
-                    <div className="flex gap-1 mb-1">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>
-                        {item.etiqueta}
-                      </span>
-                      {esEmpresa ? (
-                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
-                          <FaBuilding size={8} /> {item.empresa} {item.nit && item.nit !== 'N/A' ? `(NIT: ${item.nit})` : ''}
+                    <div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>
+                          {item.etiqueta}
                         </span>
-                      ) : (
-                        <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
-                          <FaUser size={8} /> INDEPENDIENTE
-                        </span>
-                      )}
-                      
-                      {item.resultado_final === "CERTIFICADO" && (
-                        <div className="relative group/badge">
-                          <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-help shadow-sm border border-emerald-600 flex items-center gap-1">
-                            <FaCertificate size={8} /> CERTIFICADO
+                        {esEmpresa && (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[8px] font-black flex items-center gap-1">
+                            <FaBuilding size={8} /> EMPRESA
                           </span>
-                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover/badge:flex flex-col bg-slate-900 text-white text-[10px] p-3 rounded-lg shadow-xl border border-slate-700 z-50 min-w-[200px]">
-                            <p className="font-bold text-emerald-400 mb-1 border-b border-slate-700 pb-1">{item.curso}</p>
-                            <p className="flex justify-between"><span>Emisión:</span> <span className="font-mono text-slate-300">
-                              {agendaBD.find((a:any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0,10) || "N/A"}
-                            </span></p>
-                            <p className="flex justify-between"><span>Vencimiento:</span> <span className="font-mono text-amber-400">
-                              {(()=>{
-                                const fStr = agendaBD.find((a:any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0,10);
-                                if (!fStr) return "N/A";
-                                const d = new Date(fStr);
-                                d.setFullYear(d.getFullYear() + 1);
-                                return d.toISOString().substring(0,10);
-                              })()}
-                            </span></p>
-                          </div>
-                        </div>
-                      )}
-
+                        )}
+                      </div>
+                      <h4 className="font-black text-slate-800 text-base leading-tight mt-1 uppercase">{item.nombre}</h4>
                     </div>
-                    <div className="font-bold text-slate-700 text-base">{item.nombre}</div>
-                    <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10} /> {item.cedula}</div>
-                    <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                      <FaMapMarkerAlt className="text-red-400" size={10} />
-                      <span className="font-medium">{item.ciudad_residencia || item.direccion || 'Sin dirección'}</span>
-                      <span className="text-slate-300">|</span>
-                      <span className="font-bold text-slate-600">Barrio: {item.barrio || 'N/A'}</span>
-                    </div>
-                    <div className="text-[10px] text-blue-600 font-black uppercase mt-1 tracking-tight">{item.curso}</div>
-                  </td>
+                  </div>
+                  <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{item.cedula}</div>
+                </div>
 
-                  {/* COLUMNA 2: DOCUMENTOS */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1.5">
+                {/* Info & Badges */}
+                <div className="space-y-3 mb-4">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Programa</p>
+                    <p className="text-[11px] font-bold text-slate-700">{item.curso}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <div className="flex-1 min-w-[120px]">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Estado Pago</p>
+                      <select
+                        value={item.estado_pago || "Pendiente"}
+                        onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre)}
+                        className={`text-[10px] p-2.5 rounded-xl border-none font-black w-full outline-none shadow-sm ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                      >
+                        <option value="Pendiente">PENDIENTE</option>
+                        <option value="Pagado">PAGADO</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[120px]">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Aptitud</p>
+                      <select
+                        value={item.resultado_final || "Pendiente"}
+                        onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre)}
+                        className={`text-[10px] p-2.5 rounded-xl font-black w-full outline-none shadow-sm ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}
+                      >
+                        <option>Pendiente</option>
+                        <option>APTO</option>
+                        <option>NO APTO</option>
+                        <option>CERTIFICADO</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Documentos */}
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Requisitos</p>
+                    <div className="grid grid-cols-2 gap-2">
                       {reqs.map((r: any) => (
                         <DocButton
                           key={item.id + r.id}
@@ -341,121 +334,285 @@ export function TabLista({
                         />
                       ))}
                     </div>
-                  </td>
+                  </div>
+                </div>
 
-                  {/* COLUMNA 3: PAGO */}
-                  <td className="px-6 py-4">
-                    <select
-                      value={item.estado_pago || "Pendiente"}
-                      onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre || 'Estudiante')}
-                      className={`text-[10px] p-1.5 rounded border-none font-bold w-full mb-1 outline-none ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-                    >
-                      <option value="Pendiente">PENDIENTE</option>
-                      <option value="Pagado">PAGADO</option>
-                    </select>
-                    <div className="flex items-center gap-1 font-bold text-blue-600 text-xs">
-                      $ <input
-                        defaultValue={item.precio_final || item.precio_pactado || "0"}
-                        onBlur={(e) => actualizarEstadoEstudiante(item.origen, item.id, item.origen === 'preinscripciones' ? 'precio_pactado' : 'precio_final', e.target.value, item.nombre || 'Estudiante')}
-                        className="w-20 bg-transparent outline-none border-b border-transparent hover:border-blue-300"
+                {/* Footer Card: Acciones */}
+                <div className="pt-4 border-t border-slate-100 grid grid-cols-4 gap-2">
+                  <button onClick={() => handleDownloadZip(item)} className="p-3 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Descargar ZIP">
+                    <FaFileArchive size={14} />
+                  </button>
+                  <button onClick={() => toggleMinisterio(item)} className={`p-3 border rounded-2xl flex items-center justify-center transition-all shadow-sm ${verificacion.ministerio ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-slate-50 text-slate-400 border-slate-100'}`} title="Reporte Ministerio">
+                    <FaBuilding size={14} />
+                  </button>
+                  <button onClick={() => generarReporte(item)} className="p-3 bg-slate-800 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-sm" title="Generar Certificado">
+                    <FaEnvelope className="text-yellow-400" size={14} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      triggerConfirm(
+                        "Eliminar Registro",
+                        `¿Borrar permanentemente a ${item.nombre}?`,
+                        () => borrarRegistro(item.origen, item.id),
+                        'danger'
+                      );
+                    }}
+                    className="p-3 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                  >
+                    <FaTrash size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {hasMoreEstudiantes && (
+            <div className="flex justify-center pt-4">
+              <button 
+                onClick={fetchMasEstudiantes}
+                className="px-8 py-4 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-3"
+              >
+                <FaSync className={isRefreshing ? "animate-spin" : ""} />
+                Cargar más estudiantes
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* VISTA ESCRITORIO (TABLA) — scroll independiente */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 hidden md:block max-h-[65vh] overflow-y-auto overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[1200px]">
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase border-b font-black tracking-widest">
+                <th className="px-6 py-5 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length > 0 && selectedIds.length === listaUnificada.length}
+                    onChange={toggleSeleccionarTodo}
+                    className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-6 py-5">Estudiante / Cédula</th>
+                <th className="px-6 py-5">Documentación</th>
+                <th className="px-6 py-5">Pago / Valor Final</th>
+                <th className="px-6 py-5">Aptitud</th>
+                <th className="px-6 py-5">Asignar Clase</th>
+                <th className="px-6 py-5 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {listaUnificada.map((item: any) => {
+                const reqs = obtenerRequeridos(item.curso);
+                let verificacion = item.doc_verification;
+                if (typeof verificacion === 'string') {
+                  try { verificacion = JSON.parse(verificacion); } catch (e) { verificacion = {}; }
+                }
+                verificacion = verificacion || {};
+                const esEmpresa = item.tipo_cliente === "Empresa" || (item.empresa && item.empresa !== "Particular / Independiente" && item.empresa !== "Particular");
+
+                return (
+                  <tr key={item.id + item.origen} className={`transition group ${selectedIds.includes(item.id) ? 'bg-blue-50' : 'hover:bg-slate-50/50'}`}>
+
+                    {/* COLUMNA CHECKBOX */}
+                    <td className="px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => toggleSeleccion(item.id)}
+                        className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* COLUMNA 4: APTITUD */}
-                  <td className="px-6 py-4">
-                    <select
-                      value={item.resultado_final || "Pendiente"}
-                      onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre || 'Estudiante')}
-                      className={`text-[10px] p-1.5 rounded font-black w-full outline-none ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}
-                    >
-                      <option>Pendiente</option>
-                      <option>APTO</option>
-                      <option>NO APTO</option>
-                      <option>CERTIFICADO</option>
-                    </select>
-                  </td>
-
-                  {/* COLUMNA 5: AGENDA */}
-                  <td className="px-6 py-4">
-                    {item.resultado_final === "APTO" || item.agenda_id ? (
-                      <div className="flex flex-col gap-1">
-                        <select
-                          className={`text-[10px] p-1 border rounded w-full font-bold outline-none ${item.agenda_id ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}
-                          value={item.agenda_id || ""}
-                          onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'agenda_id', e.target.value, item.nombre)}
-                        >
-                          <option value="">-- Seleccionar Fecha --</option>
-                          {agendaBD.filter(a => (a.curso || "").trim().toLowerCase() === (item.curso || "").trim().toLowerCase()).map(a => (
-                            <option key={a.id} value={a.id}>
-                              {formatFechaElegante(a.fecha)} ({a.hora}) - {a.intensidad_horaria}
-                            </option>
-                          ))}
-                        </select>
-                        {item.agenda_id && (
-                          <span className="text-[8px] font-black text-green-600 flex items-center gap-1 justify-center uppercase">
-                            <FaCheckCircle /> Cupo Reservado
+                    {/* COLUMNA 1: INFO ESTUDIANTE */}
+                    <td className="px-6 py-4">
+                      <div className="flex gap-1 mb-1">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black ${item.etiqueta === 'WEB' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>
+                          {item.etiqueta}
+                        </span>
+                        {esEmpresa ? (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
+                            <FaBuilding size={8} /> {item.empresa} {item.nit && item.nit !== 'N/A' ? `(NIT: ${item.nit})` : ''}
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black flex items-center gap-1">
+                            <FaUser size={8} /> INDEPENDIENTE
                           </span>
                         )}
+
+                        {item.resultado_final === "CERTIFICADO" && (
+                          <div className="relative group/badge">
+                            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-help shadow-sm border border-emerald-600 flex items-center gap-1">
+                              <FaCertificate size={8} /> CERTIFICADO
+                            </span>
+                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover/badge:flex flex-col bg-slate-900 text-white text-[10px] p-3 rounded-lg shadow-xl border border-slate-700 z-50 min-w-[200px]">
+                              <p className="font-bold text-emerald-400 mb-1 border-b border-slate-700 pb-1">{item.curso}</p>
+                              <p className="flex justify-between"><span>Emisión:</span> <span className="font-mono text-slate-300">
+                                {agendaBD.find((a: any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0, 10) || "N/A"}
+                              </span></p>
+                              <p className="flex justify-between"><span>Vencimiento:</span> <span className="font-mono text-amber-400">
+                                {(() => {
+                                  const fStr = agendaBD.find((a: any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0, 10);
+                                  if (!fStr) return "N/A";
+                                  const d = new Date(fStr);
+                                  d.setFullYear(d.getFullYear() + 1);
+                                  return d.toISOString().substring(0, 10);
+                                })()}
+                              </span></p>
+                            </div>
+                          </div>
+                        )}
+
                       </div>
-                    ) : (
-                      <span className="text-[10px] text-slate-300 italic">Esperando Aptitud</span>
-                    )}
-                  </td>
+                      <div className="font-black text-slate-700 text-base uppercase tracking-tight leading-tight">{item.nombre}</div>
+                      <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1 mt-0.5"><FaIdCard size={10} /> {item.cedula}</div>
+                      <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                        <FaMapMarkerAlt className="text-red-400" size={10} />
+                        <span className="font-medium">{item.ciudad_residencia || item.direccion || 'Sin dirección'}</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="font-bold text-slate-600">Barrio: {item.barrio || 'N/A'}</span>
+                      </div>
+                      <div className="text-[10px] text-blue-600 font-black uppercase mt-1 tracking-tight">{item.curso}</div>
+                    </td>
 
-                  {/* COLUMNA 6: ACCIONES */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-2 w-28 mx-auto">
-                      {/* BOTÓN DESCARGAR ZIP */}
-                      <button
-                        onClick={() => handleDownloadZip(item)}
-                        className="w-full py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[9px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                        title="Descargar todos los documentos en un ZIP"
+                    {/* COLUMNA 2: DOCUMENTOS */}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1.5">
+                        {reqs.map((r: any) => (
+                          <DocButton
+                            key={item.id + r.id}
+                            label={r.label}
+                            url={getDocUrl(item, r.id, r.oldId)}
+                            icon={r.icon}
+                            statusData={verificacion[r.id]}
+                            onToggle={() => toggleVerificacion(item, r.id, r.label)}
+                          />
+                        ))}
+                      </div>
+                    </td>
+
+                    {/* COLUMNA 3: PAGO */}
+                    <td className="px-6 py-4">
+                      <select
+                        value={item.estado_pago || "Pendiente"}
+                        onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'estado_pago', e.target.value, item.nombre || 'Estudiante')}
+                        className={`text-[10px] p-2 rounded-xl border-none font-black w-full mb-1 outline-none shadow-sm ${item.estado_pago === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
                       >
-                        <FaFileArchive size={12} /> Bajar ZIP
-                      </button>
+                        <option value="Pendiente">PENDIENTE</option>
+                        <option value="Pagado">PAGADO</option>
+                      </select>
+                      <div className="flex items-center gap-1 font-black text-blue-600 text-xs px-2">
+                        $ <input
+                          defaultValue={item.precio_final || item.precio_pactado || "0"}
+                          onBlur={(e) => actualizarEstadoEstudiante(item.origen, item.id, item.origen === 'preinscripciones' ? 'precio_pactado' : 'precio_final', e.target.value, item.nombre || 'Estudiante')}
+                          className="w-20 bg-transparent outline-none border-b border-transparent hover:border-blue-300 font-black"
+                        />
+                      </div>
+                    </td>
 
-                      {/* BOTÓN REPORTE MINISTERIO */}
-                      <button
-                        onClick={() => toggleMinisterio(item)}
-                        className={`w-full py-2 border rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm ${verificacion.ministerio
-                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30 hover:bg-emerald-600'
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        title={verificacion.ministerio ? "Quitar reporte" : "Marcar como reportado al ministerio"}
+                    {/* COLUMNA 4: APTITUD */}
+                    <td className="px-6 py-4">
+                      <select
+                        value={item.resultado_final || "Pendiente"}
+                        onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'resultado_final', e.target.value, item.nombre || 'Estudiante')}
+                        className={`text-[10px] p-2 rounded-xl font-black w-full outline-none shadow-sm ${item.resultado_final === 'APTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100'}`}
                       >
-                        {verificacion.ministerio ? <><FaCheckCircle size={12} /> Reportado</> : <><FaBuilding size={12} /> Ministerio</>}
-                      </button>
+                        <option>Pendiente</option>
+                        <option>APTO</option>
+                        <option>NO APTO</option>
+                        <option>CERTIFICADO</option>
+                      </select>
+                    </td>
 
-                      <div className="flex gap-2 mt-1">
-                        <button onClick={() => generarReporte(item)} className="flex-1 py-1.5 bg-slate-800 text-white rounded text-[9px] font-bold hover:bg-slate-900 transition flex items-center justify-center" title="Generar Certificado/Reporte">
-                          <FaEnvelope className="text-yellow-400" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            triggerConfirm(
-                              "Eliminar Registro",
-                              `¿Borrar permanentemente a ${item.nombre}? Esta acción no se puede deshacer.`,
-                              () => borrarRegistro(item.origen, item.id),
-                              'danger'
-                            );
-                          }} 
-                          className="flex-1 py-1.5 bg-red-50 text-red-500 rounded text-[9px] hover:bg-red-500 hover:text-white transition flex items-center justify-center" 
-                          title="Eliminar Estudiante"
+                    {/* COLUMNA 5: AGENDA */}
+                    <td className="px-6 py-4">
+                      {item.resultado_final === "APTO" || item.agenda_id ? (
+                        <div className="flex flex-col gap-1">
+                          <select
+                            className={`text-[10px] p-2 border rounded-xl w-full font-black outline-none shadow-sm transition-all ${item.agenda_id ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 focus:border-blue-400'}`}
+                            value={item.agenda_id || ""}
+                            onChange={(e) => actualizarEstadoEstudiante(item.origen, item.id, 'agenda_id', e.target.value, item.nombre)}
+                          >
+                            <option value="">-- Seleccionar Fecha --</option>
+                            {agendaBD.filter(a => (a.curso || "").trim().toLowerCase() === (item.curso || "").trim().toLowerCase()).map(a => (
+                              <option key={a.id} value={a.id}>
+                                {formatFechaElegante(a.fecha)} ({a.hora})
+                              </option>
+                            ))}
+                          </select>
+                          {item.agenda_id && (
+                            <span className="text-[8px] font-black text-green-600 flex items-center gap-1 justify-center uppercase mt-1">
+                              <FaCheckCircle /> Cupo Reservado
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-300 font-bold italic block text-center">Esperando Aptitud</span>
+                      )}
+                    </td>
+
+                    {/* COLUMNA 6: ACCIONES */}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-2 w-28 mx-auto">
+                        <button
+                          onClick={() => handleDownloadZip(item)}
+                          className="w-full py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[9px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                          <FaTrash size={10} />
+                          <FaFileArchive size={12} /> Bajar ZIP
                         </button>
+
+                        <button
+                          onClick={() => toggleMinisterio(item)}
+                          className={`w-full py-2 border rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm ${verificacion.ministerio
+                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30'
+                              : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                        >
+                          {verificacion.ministerio ? <><FaCheckCircle size={12} /> Reportado</> : <><FaBuilding size={12} /> Ministerio</>}
+                        </button>
+
+                        <div className="flex gap-2">
+                          <button onClick={() => generarReporte(item)} className="flex-1 py-2 bg-slate-800 text-white rounded-xl text-[9px] font-black hover:bg-black transition-all flex items-center justify-center shadow-sm">
+                            <FaEnvelope className="text-yellow-400" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              triggerConfirm(
+                                "Eliminar Registro",
+                                `¿Borrar permanentemente a ${item.nombre}?`,
+                                () => borrarRegistro(item.origen, item.id),
+                                'danger'
+                              );
+                            }}
+                            className="flex-1 py-2 bg-red-50 text-red-500 rounded-xl text-[9px] font-black hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm border border-red-100"
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
-        {/* MODAL PARA CAPTURAR DATOS DE ARL */}
+          {/* Botón cargar más — dentro del contenedor de la tabla */}
+          {hasMoreEstudiantes && !busqueda && (
+            <div className="flex justify-center py-6 border-t border-slate-100 bg-slate-50/50">
+              <button 
+                onClick={fetchMasEstudiantes}
+                className="px-8 py-3.5 bg-white border border-slate-200 text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm active:scale-95 flex items-center gap-2.5 group"
+              >
+                <FaSync className={`group-hover:rotate-180 transition-transform duration-500 ${isRefreshing ? "animate-spin" : ""}`} />
+                Cargar más registros
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL PARA CAPTURAR DATOS DE ARL */}
         {modalARL.isOpen && (
           <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
@@ -501,50 +658,51 @@ export function TabLista({
             </div>
           </div>
         )}
-      </div>
 
       {/* TOOLBAR FLOTANTE DE ACCIONES MASIVAS */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#0F172A] p-3 px-6 rounded-full shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] flex items-center gap-6 z-[60] animate-in slide-in-from-bottom-10 border border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">
+        <div className="fixed bottom-6 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 bg-[#0F172A] p-2 md:p-3 md:px-6 rounded-3xl md:rounded-full shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col md:flex-row items-center gap-3 md:gap-6 z-[60] animate-in slide-in-from-bottom-10 border border-slate-700/50 backdrop-blur-md">
+          <div className="flex items-center gap-3 px-2 md:px-0 py-1 border-b md:border-b-0 border-slate-800 w-full md:w-auto justify-center">
+            <div className="bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shadow-lg shadow-blue-500/20">
               {selectedIds.length}
             </div>
-            <span className="text-xs font-bold tracking-widest uppercase text-slate-300">Seleccionados</span>
+            <span className="text-[10px] font-black tracking-widest uppercase text-slate-400">Seleccionados</span>
           </div>
 
-          <div className="h-8 w-px bg-slate-700"></div>
+          <div className="hidden md:block h-8 w-px bg-slate-700"></div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto justify-center overflow-x-auto pb-1 md:pb-0 px-2 no-scrollbar">
             {hasPendingPayment && (
               <button
                 onClick={() => handleBulkAction('pago')}
-                className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-emerald-500/30 hover:border-transparent"
+                className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border border-emerald-500/30 hover:border-transparent whitespace-nowrap"
               >
-                Marcar Pagados
+                Pagados
               </button>
             )}
 
             {allSameCourse && courseForAgenda && (
-              <select
-                onChange={(e) => {
-                  if (e.target.value) handleBulkAction('agenda', e.target.value);
-                  e.target.value = "";
-                }}
-                className="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all outline-none cursor-pointer appearance-none text-center border border-blue-500/30 hover:border-transparent"
-              >
-                <option value="" className="bg-slate-900">+ Asignar Clase</option>
-                {agendaBD.filter(a => a.curso.toLowerCase() === courseForAgenda.toLowerCase()).map(a => (
-                  <option key={a.id} value={a.id} className="bg-slate-900 text-white">{formatFechaElegante(a.fecha)} - {a.hora}</option>
-                ))}
-              </select>
+              <div className="relative group">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) handleBulkAction('agenda', e.target.value);
+                    e.target.value = "";
+                  }}
+                  className="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all outline-none cursor-pointer appearance-none text-center border border-blue-500/30 hover:border-transparent whitespace-nowrap"
+                >
+                  <option value="" className="bg-slate-900">+ Agenda</option>
+                  {agendaBD.filter(a => a.curso.toLowerCase() === courseForAgenda.toLowerCase()).map(a => (
+                    <option key={a.id} value={a.id} className="bg-slate-900 text-white">{formatFechaElegante(a.fecha)} - {a.hora}</option>
+                  ))}
+                </select>
+              </div>
             )}
 
             <button
               onClick={() => setDeleteModalOpen(true)}
-              className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/30 hover:border-transparent"
+              className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border border-red-500/30 hover:border-transparent whitespace-nowrap"
             >
-              Eliminar
+              Borrar
             </button>
           </div>
         </div>

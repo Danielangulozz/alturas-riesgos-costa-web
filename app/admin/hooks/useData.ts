@@ -19,16 +19,36 @@ export function useData() {
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
   const [logsPage, setLogsPage] = useState(0);
 
-  const fetchData = useCallback(async (esManual = false) => {
+  const [hasMoreEstudiantes, setHasMoreEstudiantes] = useState(true);
+  const [estudiantesPage, setEstudiantesPage] = useState(0);
+
+  const fetchData = useCallback(async (esManual = false, search = "") => {
     if (esManual) setIsRefreshing(true);
 
     try {
+      let queryEst = supabase.from('estudiantes').select('*').order('created_at', { ascending: false });
+      let queryPre = supabase.from('preinscripciones').select('*').order('created_at', { ascending: false });
+
+      if (search) {
+        // Búsqueda en servidor si hay texto
+        const filter = `nombre.ilike.%${search}%,cedula.ilike.%${search}%`;
+        queryEst = queryEst.or(filter);
+        queryPre = queryPre.or(filter);
+        setHasMoreEstudiantes(false); // Al buscar, traemos lo que coincida de una vez
+      } else {
+        // Paginación si no hay búsqueda
+        queryEst = queryEst.range(0, 19);
+        queryPre = queryPre.range(0, 19);
+        setEstudiantesPage(0);
+        setHasMoreEstudiantes(true);
+      }
+
       const [est, sol, age, cat, pre, logs, perf] = await Promise.allSettled([
-        supabase.from('estudiantes').select('*').order('created_at', { ascending: false }),
+        queryEst,
         supabase.from('solicitudes').select('*').order('created_at', { ascending: false }),
         supabase.from('agenda').select('*').order('fecha', { ascending: true }),
         supabase.from('configuracion_cursos').select('*'),
-        supabase.from('preinscripciones').select('*').order('created_at', { ascending: false }),
+        queryPre,
         supabase.from('logs_actividad').select('*').order('created_at', { ascending: false }).limit(20),
         supabase.from('profiles').select('*'),
       ]);
@@ -38,7 +58,11 @@ export function useData() {
       if (age.status === 'fulfilled' && age.value.data) setAgendaBD(age.value.data);
       if (cat.status === 'fulfilled' && cat.value.data) setCatalogoCursos(cat.value.data);
       if (pre.status === 'fulfilled' && pre.value.data) setPreinscripciones(pre.value.data);
-      if (logs.status === 'fulfilled' && logs.value.data) setLogsRecientes(logs.value.data);
+      if (logs.status === 'fulfilled' && logs.value.data) {
+        setLogsRecientes(logs.value.data);
+        setLogsPage(0);
+        setHasMoreLogs(true);
+      }
       if (perf.status === 'fulfilled' && perf.value.data) setListaPerfiles(perf.value.data);
 
       if (esManual) toast.success("Base de datos sincronizada");
@@ -49,6 +73,26 @@ export function useData() {
       if (esManual) setIsRefreshing(false);
     }
   }, []);
+
+  const fetchMasEstudiantes = async () => {
+    const nextPage = estudiantesPage + 1;
+    const from = nextPage * 20;
+    const to = from + 19;
+
+    const [est, pre] = await Promise.all([
+      supabase.from('estudiantes').select('*').order('created_at', { ascending: false }).range(from, to),
+      supabase.from('preinscripciones').select('*').order('created_at', { ascending: false }).range(from, to)
+    ]);
+
+    const newEst = est.data || [];
+    const newPre = pre.data || [];
+
+    if (newEst.length < 20 && newPre.length < 20) setHasMoreEstudiantes(false);
+    
+    setEstudiantes(prev => [...prev, ...newEst]);
+    setPreinscripciones(prev => [...prev, ...newPre]);
+    setEstudiantesPage(nextPage);
+  };
 
   const fetchMasLogs = async () => {
     const nextPage = logsPage + 1;
@@ -119,6 +163,8 @@ export function useData() {
     logsRecientes,
     hasMoreLogs,
     fetchMasLogs,
+    hasMoreEstudiantes,
+    fetchMasEstudiantes,
     fetchData,
     historialInscripciones, // <-- Exportamos la gráfica aquí
   };

@@ -60,7 +60,8 @@ export default function AdminDashboard() {
   const {
     isRefreshing, listaPerfiles, estudiantes, preinscripciones,
     solicitudes, agendaBD, catalogoCursos, logsRecientes, fetchData,
-    historialInscripciones, hasMoreLogs, fetchMasLogs // 👈 AQUÍ SACAMOS LO DE LOGS
+    historialInscripciones, hasMoreLogs, fetchMasLogs,
+    hasMoreEstudiantes, fetchMasEstudiantes
   } = useData();
 
   const {
@@ -142,6 +143,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!loading) fetchData();
   }, [loading, fetchData]);
+
+  // Debounce para búsqueda en servidor
+  useEffect(() => {
+    if (loading) return;
+    const timeout = setTimeout(() => {
+      fetchData(false, busqueda);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [busqueda, loading, fetchData]);
 
   useRealtime({ fetchData, setActiveTab, setNotificacionesNuevas });
 
@@ -343,7 +353,7 @@ export default function AdminDashboard() {
               </AnimatePresence>
             </div>
           </header>
-
+ 
           {/* TABS (Con animación de transición) */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -396,6 +406,8 @@ export default function AdminDashboard() {
                   setDatosARL={setDatosARL}
                   ejecutarCambioEstado={ejecutarCambioEstado}
                   triggerConfirm={triggerConfirm}
+                  hasMoreEstudiantes={hasMoreEstudiantes}
+                  fetchMasEstudiantes={fetchMasEstudiantes}
                 />
               )}
 
