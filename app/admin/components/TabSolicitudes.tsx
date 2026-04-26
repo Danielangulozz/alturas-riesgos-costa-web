@@ -13,11 +13,12 @@ interface TabSolicitudesProps {
   catalogoCursos: any[];
   enviarWhatsAppMultifecha: (sol: any) => void;
   fetchData: () => void;
+  triggerConfirm: (title: string, message: string, onConfirm: () => void, type?: 'danger' | 'warning' | 'info' | 'success') => void;
 }
 
 export function TabSolicitudes({
   solicitudes, agendaBD, fechasSeleccionadas, setFechasSeleccionadas,
-  preciosEditados, setPreciosEditados, catalogoCursos, enviarWhatsAppMultifecha, fetchData
+  preciosEditados, setPreciosEditados, catalogoCursos, enviarWhatsAppMultifecha, fetchData, triggerConfirm
 }: TabSolicitudesProps) {
 
   if (solicitudes.length === 0) {
@@ -72,11 +73,16 @@ export function TabSolicitudes({
               </div>
 
               <button
-                onClick={async () => {
-                  if (confirm("¿Eliminar solicitud?")) {
-                    await supabase.from('solicitudes').delete().eq('id', sol.id);
-                    fetchData();
-                  }
+                onClick={() => {
+                  triggerConfirm(
+                    "Eliminar Solicitud",
+                    `¿Estás seguro de eliminar la solicitud de ${sol.nombre}?`,
+                    async () => {
+                      await supabase.from('solicitudes').delete().eq('id', sol.id);
+                      fetchData();
+                    },
+                    'danger'
+                  );
                 }}
                 className="text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all p-1.5 rounded-lg"
               >

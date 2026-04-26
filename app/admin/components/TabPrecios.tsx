@@ -8,7 +8,7 @@ interface TabPreciosProps {
 }
 
 export function TabPrecios({ userRole, catalogoCursos, actualizarPrecioMaestro }: TabPreciosProps) {
-  if (userRole !== 'admin_general' && userRole !== 'director') return null;
+  if (userRole !== 'admin_general' && userRole !== 'developer' && userRole !== 'director') return null;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in">

@@ -21,6 +21,7 @@ export interface AuthData {
   loading: boolean;
   cerrarSesion: () => Promise<void>;
   registrarLog: (accion: string, detalles: string) => Promise<void>;
+  currentSessionSeconds: number;
 }
 
 // -----------------------------------------------------------
@@ -33,6 +34,7 @@ export function useAuth(): AuthData {
   const [userName, setUserName] = useState("Cargando...");
   const [userRole, setUserRole] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
 
   // Se calcula una sola vez al montar el componente
   const [horaIngreso] = useState(
@@ -63,31 +65,30 @@ export function useAuth(): AuthData {
   // Calcula el tiempo de sesión, registra la salida y redirige.
   // -----------------------------------------------------------
   const cerrarSesion = async () => {
-    if (!confirm("¿Cerrar sesión ahora?")) return;
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session) {
-        // Buscar el último ingreso para calcular duración
-        const { data: ultimoLog } = await supabase
-          .from("logs_actividad")
-          .select("created_at")
-          .eq("usuario_id", session.user.id)
-          .eq("accion", "INGRESO")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+        // Calcular tiempo desde localStorage
+        const storageKey = `admin_session_${session.user.email}`;
+        const stored = localStorage.getItem(storageKey);
+        let totalSecs = 0;
+        if (stored) {
+           const data = JSON.parse(stored);
+           const todayStr = new Date().toLocaleDateString('en-CA');
+           if (data.date === todayStr) {
+             totalSecs = data.totalSeconds || 0;
+           }
+           // Guardar hora exacta de cierre
+           data.lastLogout = new Date().toISOString();
+           localStorage.setItem(storageKey, JSON.stringify(data));
+        }
 
-        let detalleTiempo = "Duración no calculada";
-
-        if (ultimoLog) {
-          const entrada = new Date(ultimoLog.created_at);
-          const salida = new Date();
-          const diffMs = salida.getTime() - entrada.getTime();
-          const mins = Math.floor(diffMs / 60000);
-          const horas = Math.floor(mins / 60);
-          detalleTiempo = `Duración de sesión: ${horas}h ${mins % 60}m`;
+        let detalleTiempo = "Cierre de sesión";
+        if (totalSecs > 0) {
+          const horas = Math.floor(totalSecs / 3600);
+          const mins = Math.floor((totalSecs % 3600) / 60);
+          detalleTiempo = `Cierre de sesión. Tiempo total hoy: ${horas}h ${mins}m`;
         }
 
         const etiqueta = `[${userRole.toUpperCase()}] ${userName}`;
@@ -95,7 +96,7 @@ export function useAuth(): AuthData {
           usuario_id: session.user.id,
           nombre_usuario: etiqueta,
           accion: "SALIDA",
-          detalles: `Cierre de sesión voluntario. ${detalleTiempo}`,
+          detalles: detalleTiempo,
         }]);
       }
 
@@ -111,7 +112,6 @@ export function useAuth(): AuthData {
   // checkUser
   // Verifica sesión activa, carga el perfil y registra ingreso.
   // Si no hay sesión, redirige al login.
-  // -----------------------------------------------------------
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -134,20 +134,99 @@ export function useAuth(): AuthData {
       setUserName(nombreFinal);
       setUserRole(rolFinal);
 
-      // Registrar ingreso con etiqueta de rol
-      const etiquetaLog = `[${rolFinal.toUpperCase()}] ${nombreFinal}`;
-      await supabase.from("logs_actividad").insert([{
-        usuario_id: session.user.id,
-        nombre_usuario: etiquetaLog,
-        accion: "INGRESO",
-        detalles: "Sesión iniciada.",
-      }]);
+      // Registrar ingreso inteligentemente (evitar spam por recargar)
+      const storageKey = `admin_session_${session.user.email}`;
+      const stored = localStorage.getItem(storageKey);
+      let isNewSession = true;
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          const timeSinceLast = Date.now() - (data.lastTimestamp || 0);
+          // Si han pasado menos de 5 min (300,000 ms) sin cerrar, es solo recarga
+          if (timeSinceLast < 300000 && !data.lastLogout) {
+            isNewSession = false;
+          }
+        } catch (e) {}
+      }
+
+      if (isNewSession) {
+        const etiquetaLog = `[${rolFinal.toUpperCase()}] ${nombreFinal}`;
+        await supabase.from("logs_actividad").insert([{
+          usuario_id: session.user.id,
+          nombre_usuario: etiquetaLog,
+          accion: "INGRESO",
+          detalles: "Sesión iniciada.",
+        }]);
+      }
 
       setLoading(false);
     };
 
     checkUser();
   }, [router]);
+
+  // --- CONTADOR GLOBAL DE SESIÓN ---
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const storageKey = `admin_session_${userEmail}`;
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const sessionStart = Date.now();
+
+    // Cargar inicial
+    const stored = localStorage.getItem(storageKey);
+    let initialTotal = 0;
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        if (data.date === todayStr) initialTotal = data.totalSeconds || 0;
+      } catch (e) {}
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - sessionStart) / 1000);
+      setCurrentSessionSeconds(elapsed);
+
+      // Persistir cada 5 segundos
+      if (elapsed % 5 === 0) {
+        const currentStored = localStorage.getItem(storageKey);
+        let baseTotal = initialTotal;
+        let originalDisplay = "Sesión en curso";
+        
+        if (currentStored) {
+          try {
+            const parsed = JSON.parse(currentStored);
+            if (parsed.date === todayStr) {
+               // No sobreescribir si ya hay más segundos (por otras pestañas abiertas tal vez)
+               // Pero aquí asumimos una sola pestaña principal
+               originalDisplay = parsed.originalDisplayTime || "Sesión en curso";
+            }
+          } catch(e) {}
+        }
+
+        const dataToStore: any = {
+          date: todayStr,
+          totalSeconds: baseTotal + elapsed,
+          lastSessionEnd: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+          lastTimestamp: Date.now(),
+          originalDisplayTime: originalDisplay
+        };
+
+        // Preservar el último logout si existía
+        if (currentStored) {
+          try {
+            const p = JSON.parse(currentStored);
+            if (p.lastLogout) dataToStore.lastLogout = p.lastLogout;
+          } catch(e) {}
+        }
+
+        localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [userEmail]);
 
   return {
     userEmail,
@@ -157,5 +236,6 @@ export function useAuth(): AuthData {
     loading,
     cerrarSesion,
     registrarLog,
+    currentSessionSeconds,
   };
 }

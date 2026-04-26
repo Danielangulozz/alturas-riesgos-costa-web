@@ -9,122 +9,65 @@
 // ─────────────────────────────────────────────
 export function LoadingScreen() {
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0F172A] relative overflow-hidden">
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
+      
+      {/* Fondo con gradiente suave */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent opacity-60" />
 
-      {/* Fondo: rejilla con perspectiva */}
-      <div className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(255,215,0,0.8) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,215,0,0.8) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-          transform: 'perspective(500px) rotateX(20deg)',
-          transformOrigin: 'center bottom',
-        }}
-      />
+      <div className="relative flex flex-col items-center z-10 animate-in fade-in duration-1000">
+        
+        {/* Contenedor del Logo con anillo elegante */}
+        <div className="relative w-36 h-36 mb-10 flex items-center justify-center">
+          {/* Anillo de progreso minimalista */}
+          <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle 
+              cx="50" cy="50" r="46" 
+              fill="none" 
+              stroke="#e2e8f0" 
+              strokeWidth="1.5" 
+            />
+            <circle 
+              cx="50" cy="50" r="46" 
+              fill="none" 
+              stroke="#2563eb" 
+              strokeWidth="2" 
+              strokeDasharray="40 300"
+              strokeLinecap="round"
+              className="animate-[spin_1.5s_linear_infinite]"
+            />
+          </svg>
+          
+          <div className="bg-white rounded-full p-6 shadow-sm border border-slate-100 flex items-center justify-center w-28 h-28 relative">
+            <img 
+              src="/logo.png" 
+              alt="ARC Logo" 
+              className="w-16 h-16 object-contain opacity-90 animate-pulse" 
+            />
+          </div>
+        </div>
 
-      {/* Anillo exterior giratorio */}
-      <div className="relative w-40 h-40 mb-8">
-
-        {/* Anillo 1 — gira lento */}
-        <div className="absolute inset-0 rounded-full border-2 border-transparent"
-          style={{
-            borderTopColor: '#FFD700',
-            borderRightColor: 'rgba(255,215,0,0.3)',
-            animation: 'spin 2.4s linear infinite',
-          }}
-        />
-
-        {/* Anillo 2 — gira al revés, más rápido */}
-        <div className="absolute inset-3 rounded-full border-2 border-transparent"
-          style={{
-            borderBottomColor: '#00558A',
-            borderLeftColor: 'rgba(0,85,138,0.3)',
-            animation: 'spin 1.6s linear infinite reverse',
-          }}
-        />
-
-        {/* Anillo 3 — pulsa */}
-        <div className="absolute inset-6 rounded-full border border-[#C41E3A]/40"
-          style={{ animation: 'pulse 2s ease-in-out infinite' }}
-        />
-
-        {/* Logo central */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-3xl font-black tracking-tighter leading-none"
-              style={{ fontFamily: 'system-ui, sans-serif' }}
-            >
-              <span style={{ color: '#FFD700' }}>A</span>
-              <span style={{ color: '#00558A' }}>Y</span>
-              <span style={{ color: '#C41E3A' }}>R</span>
-            </span>
-            {/* Barra tricolor */}
-            <div className="flex w-full h-[2px] mt-1">
-              <div className="flex-1 bg-[#FFD700]" />
-              <div className="flex-1 bg-[#00558A]" />
-              <div className="flex-1 bg-[#C41E3A]" />
-            </div>
+        <div className="text-center space-y-4">
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase flex items-center justify-center gap-2">
+              Alturas <span className="text-blue-600">&</span> Riesgos
+            </h2>
+            <div className="h-1 w-12 bg-amber-400 mx-auto rounded-full" />
+          </div>
+          
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">
+              Acceso Seguro
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Texto con puntos animados */}
-      <div className="flex flex-col items-center gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 animate-pulse">
-          Verificando acceso
-        </p>
-
-        {/* Barra de progreso indeterminada */}
-        <div className="w-48 h-[2px] bg-slate-800 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full"
-            style={{
-              background: 'linear-gradient(90deg, #FFD700, #00558A, #C41E3A)',
-              animation: 'slide 1.8s ease-in-out infinite',
-              width: '40%',
-            }}
-          />
-        </div>
-
-        <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
-          Alturas y Riesgos de la Costa S.A.S
+      
+      {/* Footer minimalista */}
+      <div className="absolute bottom-10 left-0 w-full text-center">
+        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+          Sistema de Gestión Interna v2.0
         </p>
       </div>
-
-      {/* Partículas de fondo */}
-      {[...Array(6)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 rounded-full"
-          style={{
-            background: ['#FFD700', '#00558A', '#C41E3A'][i % 3],
-            opacity: 0.4,
-            left: `${15 + i * 14}%`,
-            top: `${20 + (i % 3) * 20}%`,
-            animation: `float ${2 + i * 0.4}s ease-in-out infinite`,
-            animationDelay: `${i * 0.3}s`,
-          }}
-        />
-      ))}
-
-      {/* Keyframes inyectados inline */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes slide {
-          0%   { transform: translateX(-150%); }
-          50%  { transform: translateX(0%); }
-          100% { transform: translateX(350%); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) scale(1); }
-          50%       { transform: translateY(-12px) scale(1.4); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -138,49 +81,54 @@ export function LoadingTab() {
   return (
     <div className="flex flex-col items-center justify-center h-64 gap-5">
 
-      {/* Esqueleto de tarjeta con shimmer */}
-      <div className="w-full max-w-2xl space-y-3 px-2">
-        {[100, 75, 90, 60].map((w, i) => (
-          <div
-            key={i}
-            className="h-3 rounded-full bg-slate-200 overflow-hidden"
-            style={{ width: `${w}%`, animationDelay: `${i * 0.1}s` }}
-          >
-            <div
-              className="h-full w-full rounded-full"
-              style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(148,163,184,0.4) 50%, transparent 100%)',
-                animation: `shimmer 1.5s ease-in-out infinite`,
-                animationDelay: `${i * 0.15}s`,
-              }}
-            />
-          </div>
-        ))}
-
-        {/* Fila de "cards" skeleton */}
-        <div className="flex gap-3 mt-5">
-          {[1, 2, 3].map((i) => (
+      {/* Esqueleto de tarjeta con shimmer (Tema claro corporativo) */}
+      <div className="w-full max-w-3xl space-y-4 px-2">
+        <div className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 space-y-4">
+          {[100, 75, 90].map((w, i) => (
             <div
               key={i}
-              className="flex-1 h-20 rounded-2xl bg-slate-100 overflow-hidden"
+              className="h-3 rounded-full bg-slate-100 overflow-hidden"
+              style={{ width: `${w}%`, animationDelay: `${i * 0.1}s` }}
             >
               <div
-                className="h-full w-full"
+                className="h-full w-full rounded-full"
                 style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(148,163,184,0.3) 50%, transparent 100%)',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.8) 50%, transparent 100%)',
                   animation: `shimmer 1.5s ease-in-out infinite`,
-                  animationDelay: `${i * 0.2}s`,
+                  animationDelay: `${i * 0.15}s`,
                 }}
               />
             </div>
           ))}
+
+          {/* Fila de "cards" skeleton */}
+          <div className="flex gap-4 mt-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex-1 h-24 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden relative"
+              >
+                <div
+                  className="absolute inset-0 h-full w-full"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.6) 50%, transparent 100%)',
+                    animation: `shimmer 1.5s ease-in-out infinite`,
+                    animationDelay: `${i * 0.2}s`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Texto */}
-      <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-300">
-        Cargando módulo
-      </p>
+      <div className="flex items-center gap-3">
+        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+          Obteniendo datos...
+        </p>
+      </div>
 
       <style>{`
         @keyframes shimmer {

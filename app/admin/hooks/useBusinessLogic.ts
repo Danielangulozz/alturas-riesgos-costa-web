@@ -134,6 +134,9 @@ export function useBusinessLogic({
 
     const numeroLimpio = sol.telefono.replace(/\D/g, '');
     window.open(`https://wa.me/57${numeroLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    
+    // Log the action
+    registrarLog("Atendió Solicitud", `Envió fechas por WhatsApp a ${sol.nombre}`);
   };
 
   // 4. DESCARGAR PDF DE ASISTENCIA
@@ -167,6 +170,9 @@ export function useBusinessLogic({
 
     doc.save(`Planilla_${bloque.curso.replace(/\s+/g, '_')}_${bloque.fecha}.pdf`);
     toast.success("Planilla PDF generada");
+    
+    // Log the action
+    registrarLog("Descargó Planilla", `Planilla de ${bloque.curso} para ${bloque.fecha}`);
   };
 
   return {

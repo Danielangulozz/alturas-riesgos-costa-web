@@ -9,7 +9,9 @@ import { DocButton } from "./DocButton";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import * as XLSX from 'xlsx';
-import { FaFileExcel } from 'react-icons/fa'; // Asegúrate de importar el ícono
+import { FaFileExcel, FaFileArchive, FaCity, FaFileAlt, FaCertificate } from 'react-icons/fa'; // Asegúrate de importar el ícono
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 interface TabListaProps {
   busqueda: string;
@@ -27,13 +29,63 @@ interface TabListaProps {
   datosARL: { nombre: string; nit: string };
   setDatosARL: React.Dispatch<React.SetStateAction<{ nombre: string; nit: string }>>;
   ejecutarCambioEstado: (item: any, docId: string, docLabel: string, newState: string) => void;
+  triggerConfirm: (title: string, message: string, onConfirm: () => void, type?: 'danger' | 'warning' | 'info' | 'success') => void;
 }
 
 export function TabLista({
   busqueda, setBusqueda, fetchData, isRefreshing, listaUnificada, agendaBD,
   toggleVerificacion, actualizarEstadoEstudiante, generarReporte, borrarRegistro,
-  modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado
+  modalARL, setModalARL, datosARL, setDatosARL, ejecutarCambioEstado, triggerConfirm
 }: TabListaProps) {
+
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+
+  const selectedItems = listaUnificada.filter(i => selectedIds.includes(i.id));
+  const allSameCourse = selectedItems.length > 0 && selectedItems.every(i => i.curso === selectedItems[0].curso);
+  const courseForAgenda = allSameCourse ? selectedItems[0].curso : null;
+  const hasPendingPayment = selectedItems.some(i => i.estado_pago !== 'Pagado' && i.estadoPago !== 'Pagado');
+
+  const toggleSeleccion = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSeleccionarTodo = () => {
+    if (selectedIds.length === listaUnificada.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(listaUnificada.map(item => item.id));
+    }
+  };
+
+  const handleBulkAction = async (action: string, value?: string) => {
+    const selectedItems = listaUnificada.filter(i => selectedIds.includes(i.id));
+    if (selectedItems.length === 0) return;
+
+    if (action === 'delete') {
+      const tid = toast.loading("Borrando registros...");
+      for (let item of selectedItems) {
+        await supabase.from(item.origen).delete().eq('id', item.id);
+      }
+      toast.success("Registros eliminados", { id: tid });
+      setDeleteModalOpen(false);
+    } else if (action === 'pago') {
+      const tid = toast.loading("Actualizando pagos...");
+      for (let item of selectedItems) {
+        await supabase.from(item.origen).update({ estado_pago: 'Pagado' }).eq('id', item.id);
+      }
+      toast.success("Marcados como pagados", { id: tid });
+    } else if (action === 'agenda' && value) {
+      const tid = toast.loading("Asignando agenda...");
+      for (let item of selectedItems) {
+        await supabase.from(item.origen).update({ agenda_id: value }).eq('id', item.id);
+      }
+      toast.success("Agenda asignada", { id: tid });
+    }
+
+    setSelectedIds([]);
+    fetchData();
+  };
 
   const exportarAExcel = () => {
     if (listaUnificada.length === 0) return toast.error("No hay datos para exportar");
@@ -85,6 +137,70 @@ export function TabLista({
     }
   };
 
+  const handleDownloadZip = async (item: any) => {
+    const toastId = toast.loading("Generando expediente ZIP...");
+    try {
+      const zip = new JSZip();
+      const reqs = obtenerRequeridos(item.curso);
+      let downloaded = 0;
+
+      for (const r of reqs) {
+        const url = getDocUrl(item, r.id, r.oldId);
+        if (url && typeof url === 'string' && url.length > 5) {
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+
+            // Determinar extensión real
+            let ext = "pdf";
+            if (blob.type.includes("jpeg") || blob.type.includes("jpg")) ext = "jpg";
+            else if (blob.type.includes("png")) ext = "png";
+            else if (url.toLowerCase().includes(".jpg")) ext = "jpg";
+            else if (url.toLowerCase().includes(".png")) ext = "png";
+
+            zip.file(`${r.label.replace(/\//g, '_')}_${item.cedula}.${ext}`, blob);
+            downloaded++;
+          } catch (err) {
+            console.error("Error descargando doc:", r.label, err);
+          }
+        }
+      }
+
+      if (downloaded === 0) {
+        toast.error("No hay documentos subidos para comprimir", { id: toastId });
+        return;
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `Expediente_${item.cedula}_${item.nombre.replace(/\s+/g, '_')}.zip`);
+      toast.success(`Descarga completa (${downloaded} archivos)`, { id: toastId });
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al generar el ZIP", { id: toastId });
+    }
+  };
+
+  const toggleMinisterio = async (item: any) => {
+    let current = item.doc_verification;
+    if (typeof current === 'string') {
+      try { current = JSON.parse(current); } catch (e) { current = {}; }
+    }
+    current = current || {};
+
+    const newState = !current.ministerio;
+    const newDoc = { ...current, ministerio: newState };
+
+    const toastId = toast.loading(newState ? "Marcando como reportado..." : "Desmarcando...");
+    const { error } = await supabase.from(item.origen).update({ doc_verification: newDoc }).eq('id', item.id);
+
+    if (error) {
+      toast.error("Error al actualizar la base de datos", { id: toastId });
+    } else {
+      toast.success(newState ? "Reportado al Ministerio ✔" : "Reporte revocado", { id: toastId });
+      fetchData();
+    }
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in">
       {/* BARRA DE BÚSQUEDA Y SINCRONIZACIÓN */}
@@ -107,8 +223,8 @@ export function TabLista({
           onClick={() => fetchData(true)}
           disabled={isRefreshing}
           className={`px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm ${isRefreshing
-              ? 'bg-blue-100 text-blue-400 cursor-wait'
-              : 'bg-slate-100 text-slate-600 hover:bg-white hover:text-blue-600 hover:shadow-md border border-transparent hover:border-blue-100'
+            ? 'bg-blue-100 text-blue-400 cursor-wait'
+            : 'bg-slate-100 text-slate-600 hover:bg-white hover:text-blue-600 hover:shadow-md border border-transparent hover:border-blue-100'
             }`}
         >
           <FaSync className={isRefreshing ? "animate-spin" : ""} />
@@ -121,6 +237,14 @@ export function TabLista({
         <table className="w-full text-left text-sm min-w-[1200px]">
           <thead>
             <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase border-b font-black tracking-widest">
+              <th className="px-6 py-4 w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length > 0 && selectedIds.length === listaUnificada.length}
+                  onChange={toggleSeleccionarTodo}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
               <th className="px-6 py-4">Estudiante / Cédula</th>
               <th className="px-6 py-4">Documentación</th>
               <th className="px-6 py-4">Pago / Valor Final</th>
@@ -132,11 +256,25 @@ export function TabLista({
           <tbody className="divide-y divide-slate-50">
             {listaUnificada.map((item: any) => {
               const reqs = obtenerRequeridos(item.curso);
-              const verificacion = item.doc_verification || {};
+              let verificacion = item.doc_verification;
+              if (typeof verificacion === 'string') {
+                try { verificacion = JSON.parse(verificacion); } catch (e) { verificacion = {}; }
+              }
+              verificacion = verificacion || {};
               const esEmpresa = item.tipo_cliente === "Empresa" || (item.empresa && item.empresa !== "Particular / Independiente" && item.empresa !== "Particular");
 
               return (
-                <tr key={item.id + item.origen} className="hover:bg-slate-50 transition group">
+                <tr key={item.id + item.origen} className={`transition group ${selectedIds.includes(item.id) ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+
+                  {/* COLUMNA CHECKBOX */}
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSeleccion(item.id)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
 
                   {/* COLUMNA 1: INFO ESTUDIANTE */}
                   <td className="px-6 py-4">
@@ -153,6 +291,30 @@ export function TabLista({
                           <FaUser size={8} /> INDEPENDIENTE
                         </span>
                       )}
+                      
+                      {item.resultado_final === "CERTIFICADO" && (
+                        <div className="relative group/badge">
+                          <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[8px] font-black tracking-widest cursor-help shadow-sm border border-emerald-600 flex items-center gap-1">
+                            <FaCertificate size={8} /> CERTIFICADO
+                          </span>
+                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover/badge:flex flex-col bg-slate-900 text-white text-[10px] p-3 rounded-lg shadow-xl border border-slate-700 z-50 min-w-[200px]">
+                            <p className="font-bold text-emerald-400 mb-1 border-b border-slate-700 pb-1">{item.curso}</p>
+                            <p className="flex justify-between"><span>Emisión:</span> <span className="font-mono text-slate-300">
+                              {agendaBD.find((a:any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0,10) || "N/A"}
+                            </span></p>
+                            <p className="flex justify-between"><span>Vencimiento:</span> <span className="font-mono text-amber-400">
+                              {(()=>{
+                                const fStr = agendaBD.find((a:any) => a.id === item.agenda_id)?.fecha || item.created_at?.substring(0,10);
+                                if (!fStr) return "N/A";
+                                const d = new Date(fStr);
+                                d.setFullYear(d.getFullYear() + 1);
+                                return d.toISOString().substring(0,10);
+                              })()}
+                            </span></p>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                     <div className="font-bold text-slate-700 text-base">{item.nombre}</div>
                     <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1"><FaIdCard size={10} /> {item.cedula}</div>
@@ -210,6 +372,7 @@ export function TabLista({
                       <option>Pendiente</option>
                       <option>APTO</option>
                       <option>NO APTO</option>
+                      <option>CERTIFICADO</option>
                     </select>
                   </td>
 
@@ -241,13 +404,49 @@ export function TabLista({
                   </td>
 
                   {/* COLUMNA 6: ACCIONES */}
-                  <td className="px-6 py-4 text-center space-y-2">
-                    <button onClick={() => generarReporte(item)} className="w-full py-1.5 bg-slate-800 text-white rounded text-[9px] font-bold uppercase hover:bg-slate-900 transition flex items-center justify-center gap-1">
-                      <FaEnvelope className="text-yellow-400" /> Reporte
-                    </button>
-                    <button onClick={() => borrarRegistro(item.origen, item.id)} className="text-red-300 hover:text-red-500 transition">
-                      <FaTrash size={12} />
-                    </button>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-2 w-28 mx-auto">
+                      {/* BOTÓN DESCARGAR ZIP */}
+                      <button
+                        onClick={() => handleDownloadZip(item)}
+                        className="w-full py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[9px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        title="Descargar todos los documentos en un ZIP"
+                      >
+                        <FaFileArchive size={12} /> Bajar ZIP
+                      </button>
+
+                      {/* BOTÓN REPORTE MINISTERIO */}
+                      <button
+                        onClick={() => toggleMinisterio(item)}
+                        className={`w-full py-2 border rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm ${verificacion.ministerio
+                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30 hover:bg-emerald-600'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        title={verificacion.ministerio ? "Quitar reporte" : "Marcar como reportado al ministerio"}
+                      >
+                        {verificacion.ministerio ? <><FaCheckCircle size={12} /> Reportado</> : <><FaBuilding size={12} /> Ministerio</>}
+                      </button>
+
+                      <div className="flex gap-2 mt-1">
+                        <button onClick={() => generarReporte(item)} className="flex-1 py-1.5 bg-slate-800 text-white rounded text-[9px] font-bold hover:bg-slate-900 transition flex items-center justify-center" title="Generar Certificado/Reporte">
+                          <FaEnvelope className="text-yellow-400" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            triggerConfirm(
+                              "Eliminar Registro",
+                              `¿Borrar permanentemente a ${item.nombre}? Esta acción no se puede deshacer.`,
+                              () => borrarRegistro(item.origen, item.id),
+                              'danger'
+                            );
+                          }} 
+                          className="flex-1 py-1.5 bg-red-50 text-red-500 rounded text-[9px] hover:bg-red-500 hover:text-white transition flex items-center justify-center" 
+                          title="Eliminar Estudiante"
+                        >
+                          <FaTrash size={10} />
+                        </button>
+                      </div>
+                    </div>
                   </td>
 
                 </tr>
@@ -303,6 +502,82 @@ export function TabLista({
           </div>
         )}
       </div>
+
+      {/* TOOLBAR FLOTANTE DE ACCIONES MASIVAS */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#0F172A] p-3 px-6 rounded-full shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] flex items-center gap-6 z-[60] animate-in slide-in-from-bottom-10 border border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">
+              {selectedIds.length}
+            </div>
+            <span className="text-xs font-bold tracking-widest uppercase text-slate-300">Seleccionados</span>
+          </div>
+
+          <div className="h-8 w-px bg-slate-700"></div>
+
+          <div className="flex items-center gap-3">
+            {hasPendingPayment && (
+              <button
+                onClick={() => handleBulkAction('pago')}
+                className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-emerald-500/30 hover:border-transparent"
+              >
+                Marcar Pagados
+              </button>
+            )}
+
+            {allSameCourse && courseForAgenda && (
+              <select
+                onChange={(e) => {
+                  if (e.target.value) handleBulkAction('agenda', e.target.value);
+                  e.target.value = "";
+                }}
+                className="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all outline-none cursor-pointer appearance-none text-center border border-blue-500/30 hover:border-transparent"
+              >
+                <option value="" className="bg-slate-900">+ Asignar Clase</option>
+                {agendaBD.filter(a => a.curso.toLowerCase() === courseForAgenda.toLowerCase()).map(a => (
+                  <option key={a.id} value={a.id} className="bg-slate-900 text-white">{formatFechaElegante(a.fecha)} - {a.hora}</option>
+                ))}
+              </select>
+            )}
+
+            <button
+              onClick={() => setDeleteModalOpen(true)}
+              className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/30 hover:border-transparent"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 z-[70] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <FaTrash size={28} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 text-center mb-2">¿Borrar Registros?</h3>
+            <p className="text-sm text-slate-500 text-center mb-8 font-medium">
+              Estás a punto de eliminar permanentemente <strong className="text-slate-800">{selectedIds.length}</strong> estudiantes de la base de datos. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all text-xs uppercase tracking-widest"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleBulkAction('delete')}
+                className="flex-1 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all text-xs uppercase tracking-widest shadow-lg shadow-red-500/30"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

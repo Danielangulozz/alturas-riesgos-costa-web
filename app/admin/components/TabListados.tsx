@@ -16,11 +16,13 @@ interface TabListadosProps {
   preinscripciones: any[];
   descargarPDFAsistencia: (bloque: any, inscritos: any[]) => void;
   fetchData: () => void;
+  registrarLog: (accion: string, detalles: string) => Promise<void>;
+  triggerConfirm: (title: string, message: string, onConfirm: () => void, type?: 'danger' | 'warning' | 'info' | 'success') => void;
 }
 
 export function TabListados({
   estudianteSeleccionado, setEstudianteSeleccionado, fechaSeleccionada, setFechaSeleccionada,
-  agendaBD, estudiantes, preinscripciones, descargarPDFAsistencia, fetchData
+  agendaBD, estudiantes, preinscripciones, descargarPDFAsistencia, fetchData, registrarLog, triggerConfirm
 }: TabListadosProps) {
   
   return (
@@ -80,17 +82,24 @@ export function TabListados({
                   </button>
 
                   <button 
-                     onClick={async () => {
-                        if(!confirm("⚠️ ¿Estás seguro de ANULAR este certificado?\n\nEl código QR dejará de funcionar inmediatamente.")) return;
-                        const tId = toast.loading("Revocando certificado...");
-                        try {
-                            const estRevocado = await revocarCertificacion(estudianteSeleccionado.id);
-                            setEstudianteSeleccionado(estRevocado);
-                            fetchData(); 
-                            toast.success("Certificado anulado correctamente", { id: tId });
-                        } catch (err: any) {
-                            toast.error(err.message, { id: tId });
-                        }
+                     onClick={() => {
+                        triggerConfirm(
+                          "Anular Certificado",
+                          "⚠️ ¿Estás seguro de ANULAR este certificado? El código QR dejará de funcionar inmediatamente.",
+                          async () => {
+                            const tId = toast.loading("Revocando certificado...");
+                            try {
+                                const estRevocado = await revocarCertificacion(estudianteSeleccionado.id);
+                                setEstudianteSeleccionado(estRevocado);
+                                fetchData(); 
+                                await registrarLog("Revocó Certificado", `Anuló el certificado de ${estudianteSeleccionado.nombre}`);
+                                toast.success("Certificado anulado correctamente", { id: tId });
+                            } catch (err: any) {
+                                toast.error(err.message, { id: tId });
+                            }
+                          },
+                          'danger'
+                        );
                      }}
                      className="w-full py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl font-bold text-center flex items-center justify-center gap-2 hover:bg-red-100 transition-all uppercase text-[10px] tracking-widest"
                   >
@@ -99,25 +108,36 @@ export function TabListados({
                 </>
               ) : (
                 <button 
-                  onClick={async () => {
-                     if(confirm(`¿Confirmas la certificación de ${estudianteSeleccionado.nombre}?`)) {
-                        const tId = toast.loading("Validando requisitos...");
-                        try {
-                          const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
-                          if(!bloque) throw new Error("Agenda no encontrada");
+                  onClick={() => {
+                     triggerConfirm(
+                       "Generar Certificación",
+                       `¿Confirmas la certificación de ${estudianteSeleccionado.nombre}?`,
+                       async () => {
+                          const tId = toast.loading("Validando requisitos...");
+                          try {
+                            const bloque = agendaBD.find(a => a.id === estudianteSeleccionado.agenda_id);
+                            if(!bloque) throw new Error("Agenda no encontrada");
 
-                          const estActualizado = await registrarCertificacion(estudianteSeleccionado, bloque);
-                          setEstudianteSeleccionado(estActualizado);
-                          fetchData(); 
-                          toast.success("¡Certificado Generado!", { id: tId });
+                            const estActualizado = await registrarCertificacion(estudianteSeleccionado, bloque);
+                            setEstudianteSeleccionado(estActualizado);
+                            fetchData(); 
+                            await registrarLog("Generó Certificado", `Certificó a ${estudianteSeleccionado.nombre} en ${bloque.curso}`);
+                            toast.success("¡Certificado Generado!", { id: tId });
 
-                          if(confirm("Certificación exitosa. ¿Descargar PDF ahora?")) {
-                             await generarPDFCertificado(estActualizado, bloque);
+                            // Preguntar por la descarga
+                            setTimeout(() => {
+                              triggerConfirm(
+                                "Descargar PDF",
+                                "Certificación exitosa. ¿Deseas descargar el certificado PDF ahora?",
+                                () => generarPDFCertificado(estActualizado, bloque),
+                                'success'
+                              );
+                            }, 500);
+                          } catch (err: any) {
+                            toast.error(err.message, { id: tId, duration: 4000 });
                           }
-                        } catch (err: any) {
-                          toast.error(err.message, { id: tId, duration: 4000 });
-                        }
-                     }
+                       }
+                     );
                   }}
                   disabled={estudianteSeleccionado.resultado_final !== 'APTO'} 
                   className={`w-full py-3 rounded-xl font-black text-center flex items-center justify-center gap-2 transition-all uppercase text-xs tracking-widest shadow-md ${

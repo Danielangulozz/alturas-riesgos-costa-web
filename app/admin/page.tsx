@@ -13,11 +13,13 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from "framer-motion";
 
 import { ModalReporte } from "./components/ModalReporte";
 import { DocButton } from "./components/DocButton";
 import { Sidebar } from "./components/Sidebar";
 import { LoadingScreen, LoadingTab } from "./components/LoadingScreens";
+import { ConfirmModal } from "./components/ConfirmModal";
 
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
@@ -58,13 +60,13 @@ export default function AdminDashboard() {
   const {
     isRefreshing, listaPerfiles, estudiantes, preinscripciones,
     solicitudes, agendaBD, catalogoCursos, logsRecientes, fetchData,
-    historialInscripciones // 👈 AQUÍ SACAMOS LA GRÁFICA
+    historialInscripciones, hasMoreLogs, fetchMasLogs // 👈 AQUÍ SACAMOS LO DE LOGS
   } = useData();
 
   const {
     userEmail, userName, userRole,
     horaIngreso, loading,
-    cerrarSesion, registrarLog
+    cerrarSesion, registrarLog, currentSessionSeconds
   } = useAuth();
 
   const {
@@ -79,6 +81,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isModalEquipoOpen, setIsModalEquipoOpen] = useState(false);
   const [formEquipo, setFormEquipo] = useState({ email: "", pass: "", nombre: "" });
   const [modalARL, setModalARL] = useState<{ isOpen: boolean, item: any }>({ isOpen: false, item: null });
@@ -93,6 +96,24 @@ export default function AdminDashboard() {
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<any>(null);
   const [cursoSeleccionadoParaEditar, setCursoSeleccionadoParaEditar] = useState("");
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean,
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    type: 'danger' | 'warning' | 'info' | 'success'
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    type: 'warning'
+  });
+
+  const triggerConfirm = (title: string, message: string, onConfirm: () => void, type: 'danger' | 'warning' | 'info' | 'success' = 'warning') => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm, type });
+  };
+
   const [formData, setFormData] = useState({
     nombre: "", cedula: "", telefono: "", curso: "", email: "",
     ciudad_residencia: "", barrio: "", empresa: "", nit: "",
@@ -143,7 +164,35 @@ export default function AdminDashboard() {
       .filter(a => new Date(a.fecha) >= new Date(new Date().setHours(0, 0, 0, 0)))
       .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
       .slice(0, 3),
-    historialInscripciones: historialInscripciones // 👈 AQUÍ SE LA PASAMOS AL DASHBOARD
+    historialInscripciones: historialInscripciones,
+    estudiantesPorVencer: listaUnificada.filter(e => {
+      if (!e.certificado_generado || !e.certificado_fecha_vencimiento) return false;
+      const venc = new Date(e.certificado_fecha_vencimiento);
+      const hoy = new Date();
+      const limite = new Date();
+      limite.setDate(limite.getDate() + 30); // 30 días o menos
+      return venc >= hoy && venc <= limite;
+    }),
+    // 📊 Nuevos datos para gráficas (Contando directamente de los registros)
+    distribucionCursos: Object.entries(
+      listaUnificada.reduce((acc: any, curr: any) => {
+        const c = curr.curso?.trim() || 'Sin Especificar';
+        acc[c] = (acc[c] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([name, value]: any) => ({ name, value }))
+     .sort((a: any, b: any) => b.value - a.value)
+     .slice(0, 5),
+    
+    comparativaMensual: historialInscripciones.map(h => ({
+      ...h,
+      certificados: listaUnificada.filter(e => {
+        if (!e.certificado_generado || !e.created_at) return false;
+        const d = new Date(e.created_at);
+        const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        return meses[d.getMonth()] === h.mes;
+      }).length
+    }))
   };
 
   // --- CREAR USUARIO ---
@@ -182,7 +231,7 @@ export default function AdminDashboard() {
 
   // --- RENDER ---
   return (
-    <div className="flex h-screen bg-[#f8fafc] text-[#334155] overflow-hidden">
+    <div className="flex h-screen bg-slate-100 text-slate-800 overflow-hidden selection:bg-blue-500 selection:text-white">
       <Toaster position="bottom-right" />
 
       <ModalReporte
@@ -228,151 +277,224 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* WIDGET PERFIL - PROFESIONAL */}
-            <div
-              onClick={() => setActiveTab('config')}
-              className="flex items-center gap-4 bg-white pl-2 pr-5 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition-all cursor-pointer group"
-            >
-              <div className="w-10 h-10 bg-[#0F172A] rounded-lg flex items-center justify-center font-black text-[#FFD700] text-base group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
-                {userName && userName !== "Cargando..." ? userName.charAt(0).toUpperCase() : "?"}
-              </div>
-              <div className="flex flex-col justify-center">
-                <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1">{userName}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">
-                    {userRole?.replace('_', ' ') || 'Usuario'}
-                  </span>
+            {/* WIDGET PERFIL - PROFESIONAL (Desplegable) */}
+            <div className="relative">
+              <div
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-4 bg-white pl-2 pr-5 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition-all cursor-pointer group"
+              >
+                <div className="w-10 h-10 bg-[#0F172A] rounded-lg flex items-center justify-center font-black text-[#FFD700] text-base group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                  {userName && userName !== "Cargando..." ? userName.charAt(0).toUpperCase() : "?"}
+                </div>
+                <div className="flex flex-col justify-center">
+                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1">{userName}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">
+                      {userRole?.replace('_', ' ') || 'Usuario'}
+                    </span>
+                  </div>
+                </div>
+                <div className={`ml-2 text-slate-300 transition-transform duration-300 ${isProfileMenuOpen ? 'rotate-180 text-blue-500' : 'group-hover:text-blue-500'}`}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
                 </div>
               </div>
-              <div className="ml-2 text-slate-300 group-hover:text-blue-500 transition-all">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9l6 6 6-6"/>
-                </svg>
-              </div>
+
+              {/* Menú Desplegable */}
+              <AnimatePresence>
+                {isProfileMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                    >
+                      <div className="p-2 space-y-1">
+                        <button
+                          onClick={() => { setActiveTab('config'); setIsProfileMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                        >
+                          <FaUserCog /> Mi Perfil
+                        </button>
+                        <div className="h-px bg-slate-100 my-1" />
+                        <button
+                          onClick={() => { 
+                            setIsProfileMenuOpen(false);
+                            triggerConfirm(
+                              "Cerrar Sesión", 
+                              "¿Estás seguro de que deseas salir del panel administrativo?", 
+                              cerrarSesion, 
+                              "info"
+                            ); 
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                        >
+                          <FaSignOutAlt /> Cerrar Sesión
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </header>
 
-          {/* TABS */}
-          {activeTab === "dashboard" && (
-            <TabDashboard
-              userName={userName}
-              userRole={userRole}
-              statsDashboard={statsDashboard}
-              logsRecientes={logsRecientes}
-              setActiveTab={setActiveTab}
-            />
-          )}
+          {/* TABS (Con animación de transición) */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3 }}
+            >
+              {activeTab === "dashboard" && (
+                <TabDashboard
+                  userName={userName}
+                  userRole={userRole}
+                  statsDashboard={statsDashboard}
+                  logsRecientes={logsRecientes}
+                  setActiveTab={setActiveTab}
+                />
+              )}
 
-          {activeTab === "solicitudes" && (
-            <TabSolicitudes
-              solicitudes={solicitudes}
-              agendaBD={agendaBD}
-              fechasSeleccionadas={fechasSeleccionadas}
-              setFechasSeleccionadas={setFechasSeleccionadas}
-              preciosEditados={preciosEditados}
-              setPreciosEditados={setPreciosEditados}
-              catalogoCursos={catalogoCursos}
-              enviarWhatsAppMultifecha={enviarWhatsAppMultifecha}
-              fetchData={fetchData}
-            />
-          )}
+              {activeTab === "solicitudes" && (
+                <TabSolicitudes
+                  solicitudes={solicitudes}
+                  agendaBD={agendaBD}
+                  fechasSeleccionadas={fechasSeleccionadas}
+                  setFechasSeleccionadas={setFechasSeleccionadas}
+                  preciosEditados={preciosEditados}
+                  setPreciosEditados={setPreciosEditados}
+                  catalogoCursos={catalogoCursos}
+                  enviarWhatsAppMultifecha={enviarWhatsAppMultifecha}
+                  fetchData={fetchData}
+                  triggerConfirm={triggerConfirm}
+                />
+              )}
 
-          {activeTab === "lista" && (
-            <TabLista
-              busqueda={busqueda}
-              setBusqueda={setBusqueda}
-              fetchData={fetchData}
-              isRefreshing={isRefreshing}
-              listaUnificada={listaUnificada}
-              agendaBD={agendaBD}
-              toggleVerificacion={(item, docId, docLabel) => toggleVerificacion(item, docId, docLabel, setModalARL)}
-              actualizarEstadoEstudiante={actualizarEstadoEstudiante}
-              generarReporte={generarReporte}
-              borrarRegistro={borrarRegistro}
-              modalARL={modalARL}
-              setModalARL={setModalARL}
-              datosARL={datosARL}
-              setDatosARL={setDatosARL}
-              ejecutarCambioEstado={ejecutarCambioEstado}
-            />
-          )}
+              {activeTab === "lista" && (
+                <TabLista
+                  busqueda={busqueda}
+                  setBusqueda={setBusqueda}
+                  fetchData={fetchData}
+                  isRefreshing={isRefreshing}
+                  listaUnificada={listaUnificada}
+                  agendaBD={agendaBD}
+                  toggleVerificacion={(item, docId, docLabel) => toggleVerificacion(item, docId, docLabel, setModalARL)}
+                  actualizarEstadoEstudiante={actualizarEstadoEstudiante}
+                  generarReporte={generarReporte}
+                  borrarRegistro={borrarRegistro}
+                  modalARL={modalARL}
+                  setModalARL={setModalARL}
+                  datosARL={datosARL}
+                  setDatosARL={setDatosARL}
+                  ejecutarCambioEstado={ejecutarCambioEstado}
+                  triggerConfirm={triggerConfirm}
+                />
+              )}
 
-          {activeTab === "logs" && (
-            <TabLogs userRole={userRole} logsRecientes={logsRecientes} />
-          )}
+              {activeTab === "logs" && (
+                <TabLogs
+                  userRole={userRole}
+                  logsRecientes={logsRecientes}
+                  hasMoreLogs={hasMoreLogs}
+                  fetchMasLogs={fetchMasLogs}
+                />
+              )}
 
-          {activeTab === "precios" && (
-            <TabPrecios
-              userRole={userRole}
-              catalogoCursos={catalogoCursos}
-              actualizarPrecioMaestro={actualizarPrecioMaestro}
-            />
-          )}
+              {activeTab === "precios" && (
+                <TabPrecios
+                  userRole={userRole}
+                  catalogoCursos={catalogoCursos}
+                  actualizarPrecioMaestro={actualizarPrecioMaestro}
+                />
+              )}
 
-          {activeTab === "agenda" && (
-            <TabAgenda
-              cursoSeleccionadoParaEditar={cursoSeleccionadoParaEditar}
-              setCursoSeleccionadoParaEditar={setCursoSeleccionadoParaEditar}
-              catalogoCursos={catalogoCursos}
-              agendaData={agendaData}
-              setAgendaData={setAgendaData}
-              guardarEnAgenda={guardarEnAgenda}
-              agendaBD={agendaBD}
-              borrarRegistro={borrarRegistro}
-            />
-          )}
+              {activeTab === "agenda" && (
+                <TabAgenda
+                  cursoSeleccionadoParaEditar={cursoSeleccionadoParaEditar}
+                  setCursoSeleccionadoParaEditar={setCursoSeleccionadoParaEditar}
+                  catalogoCursos={catalogoCursos}
+                  agendaData={agendaData}
+                  setAgendaData={setAgendaData}
+                  guardarEnAgenda={guardarEnAgenda}
+                  agendaBD={agendaBD}
+                  borrarRegistro={borrarRegistro}
+                  triggerConfirm={triggerConfirm}
+                />
+              )}
 
-          {activeTab === "listados" && (
-            <TabListados
-              estudianteSeleccionado={estudianteSeleccionado}
-              setEstudianteSeleccionado={setEstudianteSeleccionado}
-              fechaSeleccionada={fechaSeleccionada}
-              setFechaSeleccionada={setFechaSeleccionada}
-              agendaBD={agendaBD}
-              estudiantes={estudiantes}
-              preinscripciones={preinscripciones}
-              descargarPDFAsistencia={descargarPDFAsistencia}
-              fetchData={fetchData}
-            />
-          )}
+              {activeTab === "listados" && (
+                <TabListados
+                  estudianteSeleccionado={estudianteSeleccionado}
+                  setEstudianteSeleccionado={setEstudianteSeleccionado}
+                  fechaSeleccionada={fechaSeleccionada}
+                  setFechaSeleccionada={setFechaSeleccionada}
+                  agendaBD={agendaBD}
+                  estudiantes={estudiantes}
+                  preinscripciones={preinscripciones}
+                  descargarPDFAsistencia={descargarPDFAsistencia}
+                  fetchData={fetchData}
+                  registrarLog={registrarLog}
+                  triggerConfirm={triggerConfirm}
+                />
+              )}
 
-          {activeTab === "estudiantes" && (
-            <TabEstudiantes
-              formData={formData}
-              setFormData={setFormData}
-              registrarEstudiante={registrarEstudiante}
-              cursoSeleccionadoParaEditar={cursoSeleccionadoParaEditar}
-              setCursoSeleccionadoParaEditar={setCursoSeleccionadoParaEditar}
-              catalogoCursos={catalogoCursos}
-            />
-          )}
+              {activeTab === "estudiantes" && (
+                <TabEstudiantes
+                  formData={formData}
+                  setFormData={setFormData}
+                  registrarEstudiante={registrarEstudiante}
+                  cursoSeleccionadoParaEditar={cursoSeleccionadoParaEditar}
+                  setCursoSeleccionadoParaEditar={setCursoSeleccionadoParaEditar}
+                  catalogoCursos={catalogoCursos}
+                />
+              )}
 
-          {activeTab === "config" && (
-            <TabConfig
-              userName={userName || "Usuario"}
-              userEmail={userEmail || "Cargando..."}
-              userRole={userRole || ""}
-              horaIngreso={horaIngreso || ""}
-              cerrarSesion={cerrarSesion}
-            />
-          )}
+              {activeTab === "config" && (
+                <TabConfig
+                  userName={userName || "Usuario"}
+                  userEmail={userEmail || "Cargando..."}
+                  userRole={userRole || ""}
+                  horaIngreso={horaIngreso || ""}
+                  cerrarSesion={cerrarSesion}
+                  currentSessionSeconds={currentSessionSeconds}
+                  triggerConfirm={triggerConfirm}
+                />
+              )}
 
-          {activeTab === "equipo" && (
-            <TabEquipo
-              userRole={userRole}
-              listaPerfiles={listaPerfiles}
-              fetchData={fetchData}
-              formEquipo={formEquipo}
-              setFormEquipo={setFormEquipo}
-              isModalEquipoOpen={isModalEquipoOpen}
-              setIsModalEquipoOpen={setIsModalEquipoOpen}
-              handleCrearUsuarioManual={handleCrearUsuarioManual}
-            />
-          )}
+              {activeTab === "equipo" && (
+                <TabEquipo
+                  userRole={userRole}
+                  listaPerfiles={listaPerfiles}
+                  fetchData={fetchData}
+                  formEquipo={formEquipo}
+                  setFormEquipo={setFormEquipo}
+                  isModalEquipoOpen={isModalEquipoOpen}
+                  setIsModalEquipoOpen={setIsModalEquipoOpen}
+                  handleCrearUsuarioManual={handleCrearUsuarioManual}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
 
         </div>
       </main>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        type={confirmModal.type}
+      />
     </div>
   );
 }

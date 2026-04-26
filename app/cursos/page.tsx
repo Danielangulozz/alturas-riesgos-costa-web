@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image"; 
+import Image from "next/image";
 import { FaTimes, FaCheckCircle, FaClock, FaBookOpen, FaHardHat, FaInfoCircle, FaArrowRight } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Tipos
 interface Curso {
@@ -33,7 +34,6 @@ function useInView(options = {}) {
 
 export default function CursosPage() {
   const [cursoSeleccionado, setCursoSeleccionado] = useState<Curso | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(false);
 
   // Animación del header al montar
@@ -42,20 +42,12 @@ export default function CursosPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // Abrir modal con animación
   const abrirModal = (curso: Curso) => {
     setCursoSeleccionado(curso);
-    // Pequeño delay para que el DOM monte antes de animar
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setModalVisible(true));
-    });
   };
 
-  // Cerrar modal con animación de salida
   const cerrarModal = () => {
-    setModalVisible(false);
-    // Esperamos que termine la transición antes de desmontar
-    setTimeout(() => setCursoSeleccionado(null), 350);
+    setCursoSeleccionado(null);
   };
 
   const cursos: Curso[] = [
@@ -73,7 +65,7 @@ export default function CursosPage() {
         "EMO (Examen Médico) con aptitud para alturas",
         "Certificado de afiliación a EPS"
       ],
-      imagen: "/trabajador.webp" 
+      imagen: "/trabajador.webp"
     },
     {
       titulo: "Reentrenamiento",
@@ -135,50 +127,20 @@ export default function CursosPage() {
 
   return (
     <>
-      {/* Estilos de animación globales para esta página */}
+      {/* Estilos de animación globales */}
       <style jsx global>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(28px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.93) translateY(16px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes scaleOut {
-          from { opacity: 1; transform: scale(1) translateY(0); }
-          to   { opacity: 0; transform: scale(0.93) translateY(16px); }
-        }
-        @keyframes slideRight {
-          from { opacity: 0; transform: translateX(-20px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-
-        .animate-fade-up   { animation: fadeUp 0.6s cubic-bezier(.22,1,.36,1) forwards; }
-        .animate-fade-in   { animation: fadeIn 0.5s ease forwards; }
-        .animate-scale-in  { animation: scaleIn 0.35s cubic-bezier(.22,1,.36,1) forwards; }
-        .animate-scale-out { animation: scaleOut 0.3s cubic-bezier(.55,0,1,.45) forwards; }
-        .animate-slide-right { animation: slideRight 0.5s cubic-bezier(.22,1,.36,1) forwards; }
-        .opacity-0 { opacity: 0; }
-
-        /* Barra de progreso animada dentro del modal */
         @keyframes growWidth {
           from { width: 0%; }
           to   { width: var(--target-width); }
         }
-        .bar-animate { animation: growWidth 1s cubic-bezier(.22,1,.36,1) forwards 0.3s; width: 0%; }
+        .bar-animate { animation: growWidth 1s cubic-bezier(.22,1,.36,1) forwards 0.4s; width: 0%; }
       `}</style>
 
       <section className="bg-slate-50 min-h-screen overflow-x-hidden">
         <div className="max-w-7xl mt-12 mx-auto px-6 py-20">
-          
+
           {/* ─── HEADER ─── */}
-          <div className={`text-center mb-16 transition-all duration-700 ${headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            {/* Badge animado */}
+          <div className={`text-center mb-16 transition-all duration-1000 ${headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
             <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
               Certificado bajo Resolución 4272 de 2021
@@ -193,7 +155,6 @@ export default function CursosPage() {
                 <span className="relative z-10 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                   Formación
                 </span>
-                {/* Línea decorativa bajo el texto */}
                 <span
                   className={`absolute -bottom-1 left-0 h-1 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 transition-all duration-1000 delay-500 ${headerVisible ? 'w-full' : 'w-0'}`}
                 />
@@ -219,141 +180,161 @@ export default function CursosPage() {
             ))}
           </div>
 
-          {/* Nota legal */}
           <p className={`text-center text-xs text-slate-400 mt-12 transition-all duration-700 delay-700 ${headerVisible ? 'opacity-100' : 'opacity-0'}`}>
             Todos nuestros cursos incluyen certificado oficial avalado por el Ministerio de Trabajo de Colombia.
           </p>
         </div>
 
-        {/* ─── MODAL ─── */}
-        {cursoSeleccionado && (
-          <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${modalVisible ? 'opacity-100' : 'opacity-0'}`}>
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"
-              onClick={cerrarModal}
-            />
+        {/* ─── MODAL CON FRAMER MOTION ─── */}
+        <AnimatePresence>
+          {cursoSeleccionado && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
+                onClick={cerrarModal}
+              />
 
-            {/* Panel del modal */}
-            <div className={`
-              bg-white rounded-[32px] w-full max-w-4xl shadow-2xl relative
-              flex flex-col md:flex-row
-              max-h-[90vh] md:max-h-[85vh] overflow-hidden
-              ${modalVisible ? 'animate-scale-in' : 'animate-scale-out'}
-            `}>
-
-              {/* IMAGEN IZQUIERDA */}
-              <div
-                className="md:w-2/5 relative min-h-[220px] md:min-h-full flex flex-col overflow-hidden rounded-t-[32px] md:rounded-l-[32px] md:rounded-tr-none"
-                style={{ isolation: 'isolate' }}
+              {/* Panel del modal */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="bg-white rounded-[40px] w-full max-w-4xl shadow-2xl relative flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] overflow-hidden"
               >
-                {/* Preload la imagen con priority */}
-                <Image
-                  src={cursoSeleccionado.imagen}
-                  alt={cursoSeleccionado.titulo}
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 100vw, 40vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
-
-                {/* Texto sobre imagen */}
-                <div className={`relative z-10 mt-auto p-8 text-white ${modalVisible ? 'animate-fade-up' : 'opacity-0'}`} style={{ animationDelay: '0.15s' }}>
-                  <span className={`inline-block px-3 py-1 bg-gradient-to-r ${cursoSeleccionado.color} rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 shadow-lg`}>
-                    Certificado Oficial
-                  </span>
-                  <h2 className="text-2xl md:text-3xl font-black leading-tight mb-2 uppercase tracking-tighter drop-shadow-md">
-                    {cursoSeleccionado.titulo}
-                  </h2>
-                  <p className="text-slate-300 text-sm font-bold flex items-center gap-2">
-                    <FaClock className="text-blue-400" /> {cursoSeleccionado.horasTotal} de Intensidad
-                  </p>
-                </div>
-              </div>
-
-              {/* COLUMNA DERECHA */}
-              <div className="md:w-3/5 p-8 md:p-10 overflow-y-auto bg-white md:rounded-r-[32px]">
-                {/* Botón cerrar */}
-                <button
-                  onClick={cerrarModal}
-                  className="absolute top-4 right-4 z-20 p-2 bg-slate-100 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all hover:rotate-90 duration-200"
-                >
-                  <FaTimes size={18}/>
-                </button>
-
-                {/* Horas */}
-                <div className={`mb-2 ${modalVisible ? 'animate-fade-up opacity-0' : ''}`} style={{ animationDelay: '0.2s' }}>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <FaClock size={12}/> Distribución del Tiempo
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 mb-2">
-                    <div className="bg-blue-50 p-2 rounded-2xl border border-blue-100">
-                      <span className="block text-3xl font-black text-blue-600">{cursoSeleccionado.horasTeoricas}h</span>
-                      <span className="text-xs font-bold text-blue-400 uppercase">Teóricas</span>
-                    </div>
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                      <span className="block text-3xl font-black text-emerald-600">{cursoSeleccionado.horasPracticas}h</span>
-                      <span className="text-xs font-bold text-emerald-400 uppercase">Prácticas</span>
-                    </div>
+                {/* IMAGEN IZQUIERDA */}
+                <div className="md:w-2/5 relative min-h-[250px] md:min-h-full flex flex-col overflow-hidden">
+                  <div className="absolute inset-0">
+                    <Image
+                      src={cursoSeleccionado.imagen}
+                      alt={cursoSeleccionado.titulo}
+                      fill
+                      priority
+                      sizes="(max-width: 768px) 100vw, 40vw"
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                   </div>
 
-                  {/* Barra de proporción */}
-                  {cursoSeleccionado.horasPracticas > 0 && (
-                    <div className="bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${cursoSeleccionado.color} bar-animate`}
-                        style={{
-                          '--target-width': `${(cursoSeleccionado.horasPracticas / (cursoSeleccionado.horasTeoricas + cursoSeleccionado.horasPracticas)) * 100}%`
-                        } as React.CSSProperties}
-                      />
+                  {/* Texto sobre imagen */}
+                  <div className="relative z-10 mt-auto p-10 text-white">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <span className={`inline-block px-3 py-1 bg-gradient-to-r ${cursoSeleccionado.color} rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 shadow-lg`}>
+                        Certificado Oficial
+                      </span>
+                      <h2 className="text-3xl md:text-4xl font-black leading-tight mb-3 uppercase tracking-tighter drop-shadow-md">
+                        {cursoSeleccionado.titulo}
+                      </h2>
+                      <p className="text-slate-300 text-sm font-bold flex items-center gap-2">
+                        <FaClock className="text-blue-400" /> {cursoSeleccionado.horasTotal} de Intensidad
+                      </p>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* COLUMNA DERECHA */}
+                <div className="md:w-3/5 p-8 md:p-12 overflow-y-auto bg-white flex flex-col">
+                  {/* Botón cerrar */}
+                  <button
+                    onClick={cerrarModal}
+                    className="absolute top-6 right-6 z-20 p-3 bg-slate-100 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all hover:rotate-90 duration-300"
+                  >
+                    <FaTimes size={18} />
+                  </button>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="flex-1"
+                  >
+                    {/* Horas */}
+                    <div className="mb-8">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <FaClock size={12} /> Distribución del Tiempo
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-blue-50/50 p-5 rounded-3xl border border-blue-100">
+                          <span className="block text-4xl font-black text-blue-600">{cursoSeleccionado.horasTeoricas}h</span>
+                          <span className="text-xs font-bold text-blue-400 uppercase">Teóricas</span>
+                        </div>
+                        <div className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-100">
+                          <span className="block text-4xl font-black text-emerald-600">{cursoSeleccionado.horasPracticas}h</span>
+                          <span className="text-xs font-bold text-emerald-400 uppercase">Prácticas</span>
+                        </div>
+                      </div>
+
+                      {/* Barra de proporción */}
+                      {cursoSeleccionado.horasPracticas > 0 && (
+                        <div className="bg-slate-100 rounded-full h-2.5 overflow-hidden mb-2">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${cursoSeleccionado.color} bar-animate`}
+                            style={{
+                              '--target-width': `${(cursoSeleccionado.horasPracticas / (cursoSeleccionado.horasTeoricas + cursoSeleccionado.horasPracticas)) * 100}%`
+                            } as React.CSSProperties}
+                          />
+                        </div>
+                      )}
+                      <p className="text-[12px] text-slate-400 font-bold">
+                        {Math.round((cursoSeleccionado.horasPracticas / (cursoSeleccionado.horasTeoricas + cursoSeleccionado.horasPracticas || 1)) * 100)}% componente práctico presencial
+                      </p>
                     </div>
-                  )}
-                  <p className="text-[12px] text-slate-400 font-bold">
-                    {Math.round((cursoSeleccionado.horasPracticas / (cursoSeleccionado.horasTeoricas + cursoSeleccionado.horasPracticas || 1)) * 100)}% componente práctico
-                  </p>
-                </div>
 
-                {/* Requisitos */}
-                <div className={`mb-2 ${modalVisible ? 'animate-fade-up opacity-0' : ''}`} style={{ animationDelay: '0.28s' }}>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <FaBookOpen size={10}/> Requisitos de Inscripción
-                  </h3>
-                  <ul className="space-y-1.5">
-                    {cursoSeleccionado.requisitos.map((req, i) => (
-                      <li
-                        key={i}
-                        className={`flex items-start gap-3 text-slate-600 text-sm font-medium ${modalVisible ? 'animate-slide-right opacity-0' : ''}`}
-                        style={{ animationDelay: `${0.3 + i * 0.06}s` }}
-                      >
-                        <FaCheckCircle className="text-emerald-500 mt-0.5 flex-shrink-0 text-xs"/>
-                        {req}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                    {/* Requisitos */}
+                    <div className="mb-10">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                        <FaBookOpen size={10} /> Requisitos de Inscripción
+                      </h3>
+                      <ul className="space-y-3">
+                        {cursoSeleccionado.requisitos.map((req, i) => (
+                          <motion.li
+                            key={i}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 + i * 0.05 }}
+                            className="flex items-start gap-4 text-slate-600 text-[15px] font-medium leading-tight"
+                          >
+                            <FaCheckCircle className="text-emerald-500 mt-1 flex-shrink-0 text-sm" />
+                            {req}
+                          </motion.li>
+                        ))}
+                      </ul>
+                    </div>
+                  </motion.div>
 
-                {/* CTA */}
-                <a
-                  href="/contacto"
-                  className={`
-                    w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm
-                    flex items-center justify-center gap-2 group
-                    bg-slate-900 text-white
-                    hover:opacity-90 transition-all
-                    shadow-xl hover:-translate-y-0.5
-                    ${modalVisible ? 'animate-fade-up opacity-0' : ''}
-                  `}
-                  style={{ animationDelay: '0.55s' }}
-                >
-                  <FaHardHat/>
-                  Inscribirme Ahora
-                  <FaArrowRight className="transition-transform duration-200 group-hover:translate-x-1"/>
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
+                  {/* CTA */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <a
+                      href="/contacto"
+                      className="w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 group bg-slate-900 text-white hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1"
+                    >
+                      <FaHardHat className="text-blue-400" />
+                      Inscribirme Ahora
+                      <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-2" />
+                    </a>
+                  </motion.div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
     </>
   );
@@ -366,55 +347,54 @@ function CursoCard({ curso, index, onClick }: { curso: Curso; index: number; onC
   const { ref, inView } = useInView();
 
   return (
-    <div
+    <motion.div
       ref={ref}
       onClick={onClick}
       className={`
-        group bg-white rounded-3xl
+        group bg-white rounded-[32px]
         border border-slate-200 cursor-pointer
         shadow-sm hover:shadow-2xl hover:shadow-blue-900/10
-        transition-all duration-300 hover:-translate-y-2
+        transition-all duration-500 hover:-translate-y-2
         flex flex-col relative overflow-hidden
-        opacity-0
       `}
-      style={inView ? {
-        animation: `fadeUp 0.6s cubic-bezier(.22,1,.36,1) ${index * 0.1}s forwards`
-      } : {}}
+      initial={{ opacity: 0, y: 20 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ delay: index * 0.1, duration: 0.5 }}
     >
-      {/* Imagen de fondo con overlay - carga eager para los primeros 2 */}
-      <div className="relative h-40 overflow-hidden rounded-t-3xl">
+      {/* Imagen de fondo con overlay */}
+      <div className="relative h-44 overflow-hidden rounded-t-[32px]">
         <Image
           src={curso.imagen}
           alt={curso.titulo}
           fill
-          priority={index < 2}       // Los primeros 2 cargan inmediatamente
-          loading={index < 2 ? "eager" : "lazy"}  // El resto lazy
-          sizes="(max-width: 768px) 100vw, 25vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          priority={index < 4} // Aumentamos priority para que estén listas para el modal
+          sizes="(max-width: 768px) 100vw, 40vw" // Match modal sizes to avoid reload
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+
         {/* Badge de horas sobre imagen */}
-        <span className={`absolute bottom-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white bg-gradient-to-r ${curso.color} shadow-md`}>
+        <span className={`absolute bottom-4 left-4 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-gradient-to-r ${curso.color} shadow-lg`}>
           {curso.horasTotal}
         </span>
       </div>
 
       {/* Contenido */}
-      <div className="p-6 flex flex-col flex-1">
-        <div className="text-3xl mb-3">{curso.icono}</div>
-        <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-200">
+      <div className="p-8 flex flex-col flex-1">
+        <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300 origin-left">{curso.icono}</div>
+        <h3 className="text-xl font-black text-slate-800 mb-3 leading-tight group-hover:text-blue-600 transition-colors duration-300">
           {curso.titulo}
         </h3>
-        <p className="text-slate-500 text-sm leading-relaxed mb-5 flex-1">
+        <p className="text-slate-500 text-sm leading-relaxed mb-6 flex-1">
           {curso.desc}
         </p>
-        <button className="mt-auto w-full py-3 rounded-xl border-2 border-slate-100 text-slate-600 font-bold text-xs uppercase flex items-center justify-center gap-2 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
-          <FaInfoCircle size={12}/> Ver Detalles
+        <button className="mt-auto w-full py-4 rounded-2xl border-2 border-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+          <FaInfoCircle size={14} /> Ver Detalles
         </button>
       </div>
 
       {/* Línea decorativa de color al hover */}
-      <div className={`absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r ${curso.color} group-hover:w-full transition-all duration-500 rounded-b-3xl`} />
-    </div>
+      <div className={`absolute bottom-0 left-0 h-1.5 w-0 bg-gradient-to-r ${curso.color} group-hover:w-full transition-all duration-500 rounded-b-[32px]`} />
+    </motion.div>
   );
 }

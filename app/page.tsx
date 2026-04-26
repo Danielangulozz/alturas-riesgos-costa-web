@@ -21,10 +21,10 @@ export default function HomePage() {
   ];
 
   const cursos = [
-    { title: "Jefes de Área", desc: "Personal administrativo que dicta políticas sobre seguridad en alturas.", duration: "8 Horas", reqs: "Cédula y Examen", icon: <FaUserShield />, img: "/picboss.webp", color: "from-orange-600 to-amber-500" },
-    { title: "Trabajador Autorizado", desc: "Formación técnica para operarios que realizan labores directas en alturas.", duration: "32 Horas", reqs: "Aptitud Médica", icon: <FaUsers />, img: "/pictrabj.webp", color: "from-blue-600 to-cyan-500" },
-    { title: "Coordinador de Alturas", desc: "Identificar peligros y supervisar medidas de protección en sitio.", duration: "80 Horas", reqs: "Exp. Certificada", icon: <FaUserGraduate />, img: "/piccoo.webp", color: "from-violet-600 to-purple-500" },
-    { title: "Reentrenamiento", desc: "Actualización anual obligatoria para mantener vigentes las competencias.", duration: "8 Horas", reqs: "Certificado Previo", icon: <FaSyncAlt />, img: "/picree.webp", color: "from-emerald-600 to-teal-500" },
+    { title: "Jefes de Área", desc: "Personal administrativo que dicta políticas sobre seguridad en alturas.", duration: "8 Horas", reqs: "Cédula y Examen", icon: <FaUserShield />, img: "/jefes.webp", color: "from-orange-600 to-amber-500" },
+    { title: "Trabajador Autorizado", desc: "Formación técnica para operarios que realizan labores directas en alturas.", duration: "32 Horas", reqs: "Aptitud Médica", icon: <FaUsers />, img: "/trabajador.webp", color: "from-blue-600 to-cyan-500" },
+    { title: "Coordinador de Alturas", desc: "Identificar peligros y supervisar medidas de protección en sitio.", duration: "80 Horas", reqs: "Exp. Certificada", icon: <FaUserGraduate />, img: "/coordinador.webp", color: "from-violet-600 to-purple-500" },
+    { title: "Reentrenamiento", desc: "Actualización anual obligatoria para mantener vigentes las competencias.", duration: "8 Horas", reqs: "Certificado Previo", icon: <FaSyncAlt />, img: "/reentrenamiento.webp", color: "from-emerald-600 to-teal-500" },
   ];
 
   const ventajas = [

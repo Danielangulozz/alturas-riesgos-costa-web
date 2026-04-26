@@ -16,6 +16,8 @@ export function useData() {
   const [agendaBD, setAgendaBD] = useState<any[]>([]);
   const [catalogoCursos, setCatalogoCursos] = useState<any[]>([]);
   const [logsRecientes, setLogsRecientes] = useState<any[]>([]);
+  const [hasMoreLogs, setHasMoreLogs] = useState(true);
+  const [logsPage, setLogsPage] = useState(0);
 
   const fetchData = useCallback(async (esManual = false) => {
     if (esManual) setIsRefreshing(true);
@@ -47,6 +49,24 @@ export function useData() {
       if (esManual) setIsRefreshing(false);
     }
   }, []);
+
+  const fetchMasLogs = async () => {
+    const nextPage = logsPage + 1;
+    const from = nextPage * 20;
+    const to = from + 19;
+
+    const { data, error } = await supabase
+      .from('logs_actividad')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (!error && data) {
+      if (data.length < 20) setHasMoreLogs(false);
+      setLogsRecientes(prev => [...prev, ...data]);
+      setLogsPage(nextPage);
+    }
+  };
 
   // ============================================================
   // NUEVO: LÓGICA DE LA GRÁFICA (Últimos 6 meses)
@@ -97,6 +117,8 @@ export function useData() {
     agendaBD,
     catalogoCursos,
     logsRecientes,
+    hasMoreLogs,
+    fetchMasLogs,
     fetchData,
     historialInscripciones, // <-- Exportamos la gráfica aquí
   };

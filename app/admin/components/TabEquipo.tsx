@@ -21,7 +21,7 @@ export function TabEquipo({
 
   const [confirmarEliminar, setConfirmarEliminar] = useState<any>(null);
 
-  if (userRole !== 'admin_general' && userRole !== 'director') return null;
+  if (userRole !== 'admin_general' && userRole !== 'developer' && userRole !== 'director') return null;
 
   const eliminarColaborador = async (perfil: any) => {
     const tId = toast.loading("Eliminando colaborador...");
@@ -75,6 +75,7 @@ export function TabEquipo({
                 <td className="px-6 py-4">
                   <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
                     p.role === 'admin_general' ? 'bg-red-100 text-red-600' :
+                    p.role === 'developer'     ? 'bg-slate-900 text-emerald-400 font-mono tracking-widest' :
                     p.role === 'director'      ? 'bg-purple-100 text-purple-600' :
                     p.role === 'coordinator'   ? 'bg-blue-100 text-blue-600' 
                                                : 'bg-slate-100 text-slate-500'
@@ -95,6 +96,7 @@ export function TabEquipo({
                     <option value="coordinator">coordinator</option>
                     <option value="director">director</option>
                     <option value="admin_general">admin_general</option>
+                    <option value="developer">developer</option>
                   </select>
                 </td>
                 <td className="px-6 py-4 text-center">
@@ -120,50 +122,57 @@ export function TabEquipo({
 
       {/* MODAL CREAR COLABORADOR */}
       {isModalEquipoOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
-            <div className="text-center mb-8">
-              <div className="bg-blue-100 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3">
-                <FaUserPlus size={30}/>
+        <div className="fixed inset-0 bg-[#0F172A]/80 z-[120] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white rounded-[32px] overflow-hidden max-w-md w-full shadow-2xl border border-white/20 animate-in zoom-in duration-300">
+            {/* Header del Modal */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-xl -ml-5 -mb-5"></div>
+              <div className="bg-white/20 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-md border border-white/30 rotate-3 shadow-sm">
+                <FaUserPlus size={24}/>
               </div>
-              <h3 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Nuevo Miembro</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Acceso AR COSTA</p>
+              <h3 className="text-xl font-black text-white tracking-tighter uppercase relative z-10">Nuevo Equipo</h3>
+              <p className="text-[9px] text-blue-100 font-bold uppercase tracking-[0.2em] relative z-10">Acceso AR Costa</p>
             </div>
-            <div className="space-y-4">
+            
+            {/* Formulario */}
+            <div className="p-6 space-y-4 bg-slate-50">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nombre Completo</label>
-                <input type="text" placeholder="Ej: Juan Pérez"
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
-                  value={formEquipo.nombre}
-                  onChange={(e) => setFormEquipo({...formEquipo, nombre: e.target.value})}
-                />
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div className="relative">
+                  <input type="text" placeholder="Ej: Juan Pérez"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700 text-sm transition-all shadow-sm placeholder:text-slate-300 placeholder:font-medium"
+                    value={formEquipo.nombre}
+                    onChange={(e) => setFormEquipo({...formEquipo, nombre: e.target.value})}
+                  />
+                </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Correo Electrónico</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
                 <input type="email" placeholder="correo@arcosta.com"
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700 text-sm transition-all shadow-sm placeholder:text-slate-300 placeholder:font-medium"
                   value={formEquipo.email}
                   onChange={(e) => setFormEquipo({...formEquipo, email: e.target.value})}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Contraseña Temporal</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña Temporal</label>
                 <input type="password" placeholder="••••••••"
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 transition-all"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700 text-sm transition-all shadow-sm placeholder:text-slate-300 placeholder:font-medium"
                   value={formEquipo.pass}
                   onChange={(e) => setFormEquipo({...formEquipo, pass: e.target.value})}
                 />
               </div>
-              <div className="pt-4 space-y-3">
+              <div className="pt-3 space-y-2">
                 <button 
                   onClick={() => handleCrearUsuarioManual(formEquipo.email, formEquipo.pass, formEquipo.nombre)}
-                  className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
                 >
-                  CREAR CUENTA
+                  Crear Cuenta
                 </button>
                 <button 
                   onClick={() => setIsModalEquipoOpen(false)}
-                  className="w-full py-2 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-red-500 transition-colors"
+                  className="w-full py-2 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-700 hover:bg-slate-200/50 rounded-xl transition-all"
                 >
                   Cancelar
                 </button>
@@ -175,36 +184,39 @@ export function TabEquipo({
 
       {/* MODAL CONFIRMAR ELIMINACIÓN */}
       {confirmarEliminar && (
-        <div className="fixed inset-0 bg-black/70 z-[130] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 animate-in zoom-in duration-200">
-            <div className="text-center mb-6">
-              <div className="bg-red-100 text-red-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FaExclamationTriangle size={28}/>
+        <div className="fixed inset-0 bg-[#0F172A]/80 z-[130] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-red-100 animate-in zoom-in duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-rose-600"></div>
+            <div className="text-center mb-8 mt-2">
+              <div className="bg-red-50 text-red-500 w-20 h-20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner border border-red-100">
+                <FaTrash size={32} className="animate-pulse"/>
               </div>
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">¿Eliminar colaborador?</h3>
-              <p className="text-xs text-slate-400 mt-2">
-                Estás a punto de eliminar el perfil de
+              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">¿Despedir Equipo?</h3>
+              <p className="text-xs text-slate-400 font-bold mt-2 tracking-widest">
+                ESTÁS A PUNTO DE ELIMINAR A
               </p>
-              <p className="text-sm font-black text-slate-700 uppercase mt-1">
-                {confirmarEliminar.full_name}
-              </p>
-              <p className="text-[10px] font-mono text-slate-400 mt-0.5">{confirmarEliminar.email}</p>
-              <p className="text-[10px] text-red-400 font-bold mt-3">
-                Esta acción no se puede deshacer.
+              <div className="bg-slate-50 p-4 rounded-2xl mt-4 border border-slate-100">
+                <p className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                  {confirmarEliminar.full_name}
+                </p>
+                <p className="text-[10px] font-mono text-slate-500 mt-1">{confirmarEliminar.email}</p>
+              </div>
+              <p className="text-[10px] text-red-500 font-black tracking-widest uppercase mt-4 bg-red-50 py-2 rounded-xl">
+                Acción Irreversible
               </p>
             </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => eliminarColaborador(confirmarEliminar)}
-                className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-lg shadow-red-100"
-              >
-                Sí, eliminar
-              </button>
+            <div className="flex gap-3">
               <button
                 onClick={() => setConfirmarEliminar(null)}
-                className="w-full py-2 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 transition-colors"
+                className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
               >
                 Cancelar
+              </button>
+              <button
+                onClick={() => eliminarColaborador(confirmarEliminar)}
+                className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-lg shadow-red-500/30"
+              >
+                Eliminar
               </button>
             </div>
           </div>
